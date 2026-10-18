@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { StreamViewer } from './components/StreamViewer';
 import { TelemetryBar } from './components/TelemetryBar';
 import { BandwidthChart } from './components/BandwidthChart';
+import DetectionLog from './components/DetectionLog';
 import { MacroSimulator } from './components/MacroSimulator';
 import { ArchitectureStages } from './components/ArchitectureStages';
 import { useVideoFeed } from './hooks/useVideoFeed';
@@ -78,6 +79,11 @@ export default function App() {
         {/* 3. Real-Time Bandwidth Timeline Chart */}
         <section>
           <BandwidthChart telemetry={activeTelemetry} />
+        </section>
+
+        {/* 4. Detection Event Log */}
+        <section>
+          <DetectionLog telemetry={activeTelemetry} />
         </section>
 
         {/* Python Edge Worker Quick Connect Guide */}
