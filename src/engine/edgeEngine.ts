@@ -21,6 +21,8 @@ export class BrowserEdgePipeline {
   private hysteresisCountdown: number = 0;
   private lastValidRoiBox: [number, number, number, number] | null = null;
 
+  private smoothRoiBox: [number, number, number, number] | null = null;
+
   // Options
   public activityThreshold: number;
   public lumaThreshold: number;
@@ -51,6 +53,8 @@ export class BrowserEdgePipeline {
     this.hysteresisCountdown = 0;
     this.cumulativeRawBytes = 0;
     this.cumulativeSentBytes = 0;
+    this.smoothRoiBox = null;
+    this.lastValidRoiBox = null;
     this.bgModel.fill(0);
   }
 
@@ -69,9 +73,12 @@ export class BrowserEdgePipeline {
     const data = analysisImageData.data;
     const len = this.w * this.h;
 
-    // Stage 1: Running Average Background Subtraction & Foreground Mask
+    // Stage 1: Running Average Background Subtraction & Block Clustering (Noise Immune)
     let activePixels = 0;
-    let minX = this.w, minY = this.h, maxX = -1, maxY = -1;
+    const blockSize = 8;
+    const gridCols = Math.floor(this.w / blockSize); // 16 cols
+    const gridRows = Math.floor(this.h / blockSize); // 9 rows
+    const blockCounts = new Uint16Array(gridCols * gridRows);
 
     // Optional visualization mask
     const maskData = maskCanvasContext 
@@ -95,10 +102,11 @@ export class BrowserEdgePipeline {
         activePixels++;
         const px = p % this.w;
         const py = Math.floor(p / this.w);
-        if (px < minX) minX = px;
-        if (px > maxX) maxX = px;
-        if (py < minY) minY = py;
-        if (py > maxY) maxY = py;
+        const bx = Math.floor(px / blockSize);
+        const by = Math.floor(py / blockSize);
+        if (bx < gridCols && by < gridRows) {
+          blockCounts[by * gridCols + bx]++;
+        }
 
         if (maskData) {
           maskData.data[i] = 45;      // R (Teal tint)
@@ -115,8 +123,8 @@ export class BrowserEdgePipeline {
       }
 
       // Adaptive background model update:
-      // Slower learning rate for moving objects (0.003), faster for static scene (0.04)
-      const alpha = isForeground ? 0.003 : 0.04;
+      // Slower learning rate for moving objects (0.002), faster for static scene (0.035)
+      const alpha = isForeground ? 0.002 : 0.035;
       this.bgModel[p] += alpha * (luma - this.bgModel[p]);
     }
 
@@ -127,8 +135,25 @@ export class BrowserEdgePipeline {
     this.isInitialized = true;
     const activityRatio = activePixels / len;
 
+    // Find bounding box from active blocks (filters out isolated sensor noise specks)
+    let minBx = gridCols, maxBx = -1, minBy = gridRows, maxBy = -1;
+    let activeBlockCount = 0;
+    const minPixelsPerBlock = 5; // requires at least 5 active pixels in an 8x8 block
+
+    for (let by = 0; by < gridRows; by++) {
+      for (let bx = 0; bx < gridCols; bx++) {
+        if (blockCounts[by * gridCols + bx] >= minPixelsPerBlock) {
+          activeBlockCount++;
+          if (bx < minBx) minBx = bx;
+          if (bx > maxBx) maxBx = bx;
+          if (by < minBy) minBy = by;
+          if (by > maxBy) maxBy = by;
+        }
+      }
+    }
+
     // Stage 2: Adaptive Frame Skipping with Hysteresis & Heartbeat
-    const hasMotion = activityRatio >= this.activityThreshold;
+    const hasMotion = activeBlockCount > 0 && activityRatio >= this.activityThreshold;
     let state: StreamState = 'IDLE';
 
     if (hasMotion) {
@@ -154,16 +179,22 @@ export class BrowserEdgePipeline {
       this.sentFrames++;
       this.framesSinceSent = 0;
 
-      // Stage 3: ROI Bounding Box Extraction & Padding
-      if (maxX >= 0 && maxY >= 0) {
+      // Stage 3: ROI Bounding Box Extraction with EMA Smoothing & Padding
+      if (maxBx >= 0 && maxBy >= 0) {
+        // Pixel coordinates in analysis frame
+        const pMinX = minBx * blockSize;
+        const pMinY = minBy * blockSize;
+        const pMaxX = Math.min(this.w, (maxBx + 1) * blockSize);
+        const pMaxY = Math.min(this.h, (maxBy + 1) * blockSize);
+
         // Scale to native video dimensions
         const scaleX = nativeWidth / this.w;
         const scaleY = nativeHeight / this.h;
 
-        let natX0 = minX * scaleX;
-        let natY0 = minY * scaleY;
-        let natX1 = maxX * scaleX;
-        let natY1 = maxY * scaleY;
+        let natX0 = pMinX * scaleX;
+        let natY0 = pMinY * scaleY;
+        let natX1 = pMaxX * scaleX;
+        let natY1 = pMaxY * scaleY;
 
         // Apply safety padding
         const padW = (natX1 - natX0) * this.roiPaddingPct;
@@ -174,14 +205,40 @@ export class BrowserEdgePipeline {
         natX1 = Math.min(nativeWidth, Math.ceil(natX1 + padW));
         natY1 = Math.min(nativeHeight, Math.ceil(natY1 + padH));
 
-        const roiW = natX1 - natX0;
-        const roiH = natY1 - natY0;
+        const targetW = natX1 - natX0;
+        const targetH = natY1 - natY0;
 
-        roiBox = [natX0, natY0, roiW, roiH];
+        // Temporal EMA Smoothing (prevents jitter and flickering)
+        if (this.smoothRoiBox === null) {
+          this.smoothRoiBox = [natX0, natY0, targetW, targetH];
+        } else {
+          const smoothAlpha = 0.35;
+          this.smoothRoiBox[0] += (natX0 - this.smoothRoiBox[0]) * smoothAlpha;
+          this.smoothRoiBox[1] += (natY0 - this.smoothRoiBox[1]) * smoothAlpha;
+          this.smoothRoiBox[2] += (targetW - this.smoothRoiBox[2]) * smoothAlpha;
+          this.smoothRoiBox[3] += (targetH - this.smoothRoiBox[3]) * smoothAlpha;
+        }
+
+        const clampedX = Math.max(0, Math.min(nativeWidth - 30, Math.round(this.smoothRoiBox[0])));
+        const clampedY = Math.max(0, Math.min(nativeHeight - 30, Math.round(this.smoothRoiBox[1])));
+        const clampedW = Math.max(30, Math.min(nativeWidth - clampedX, Math.round(this.smoothRoiBox[2])));
+        const clampedH = Math.max(30, Math.min(nativeHeight - clampedY, Math.round(this.smoothRoiBox[3])));
+
+        roiBox = [clampedX, clampedY, clampedW, clampedH];
         this.lastValidRoiBox = roiBox;
-        const roiAreaRatio = (roiW * roiH) / (nativeWidth * nativeHeight);
+        const roiAreaRatio = (clampedW * clampedH) / (nativeWidth * nativeHeight);
 
         // Sent bytes proportional to cropped ROI pixel area + 0.5% metadata
+        sentBytes = Math.round(baselineBytesPerFrame * (roiAreaRatio + 0.005));
+      } else if (this.smoothRoiBox) {
+        // During hysteresis motion decay, hold the stabilized bounding box steady
+        const clampedX = Math.max(0, Math.min(nativeWidth - 30, Math.round(this.smoothRoiBox[0])));
+        const clampedY = Math.max(0, Math.min(nativeHeight - 30, Math.round(this.smoothRoiBox[1])));
+        const clampedW = Math.max(30, Math.min(nativeWidth - clampedX, Math.round(this.smoothRoiBox[2])));
+        const clampedH = Math.max(30, Math.min(nativeHeight - clampedY, Math.round(this.smoothRoiBox[3])));
+
+        roiBox = [clampedX, clampedY, clampedW, clampedH];
+        const roiAreaRatio = (clampedW * clampedH) / (nativeWidth * nativeHeight);
         sentBytes = Math.round(baselineBytesPerFrame * (roiAreaRatio + 0.005));
       } else if (this.lastValidRoiBox) {
         roiBox = this.lastValidRoiBox;
@@ -192,12 +249,14 @@ export class BrowserEdgePipeline {
         sentBytes = baselineBytesPerFrame;
       }
     } else if (state === 'HEARTBEAT') {
+      this.smoothRoiBox = null;
       this.sentFrames++;
       this.framesSinceSent = 0;
       // Low-res heartbeat keyframe (1/16th pixels, ~6% bytes)
       sentBytes = Math.round(baselineBytesPerFrame * 0.06);
       roiBox = [0, 0, nativeWidth, nativeHeight];
     } else {
+      this.smoothRoiBox = null;
       // IDLE: tiny metadata ping (~48 bytes)
       sentBytes = 48;
       roiBox = null;

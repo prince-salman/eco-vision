@@ -8,14 +8,23 @@ interface BandwidthChartProps {
 export const BandwidthChart: React.FC<BandwidthChartProps> = ({ telemetry }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const historyRef = useRef<number[]>(new Array(40).fill(0));
+  const lastPushTimeRef = useRef<number>(0);
   const baselineKbps = 4000;
 
   useEffect(() => {
+    const now = performance.now();
     const currentKbps = telemetry?.currentKbps ?? 0;
     const history = historyRef.current;
-    history.push(currentKbps);
-    if (history.length > 40) {
-      history.shift();
+
+    // Push new point every ~160ms (~6 updates/sec) or blend with latest point
+    if (now - lastPushTimeRef.current >= 160) {
+      lastPushTimeRef.current = now;
+      history.push(currentKbps);
+      if (history.length > 40) {
+        history.shift();
+      }
+    } else if (history.length > 0) {
+      history[history.length - 1] = Math.round(history[history.length - 1] * 0.7 + currentKbps * 0.3);
     }
 
     const canvas = canvasRef.current;
@@ -74,7 +83,7 @@ export const BandwidthChart: React.FC<BandwidthChartProps> = ({ telemetry }) => 
 
     // Draw Eco-Vision Area Gradient
     const gradient = ctx.createLinearGradient(0, yBaseline, 0, yBottom);
-    gradient.addColorStop(0, 'rgba(45, 212, 191, 0.4)');
+    gradient.addColorStop(0, 'rgba(45, 212, 191, 0.35)');
     gradient.addColorStop(1, 'rgba(45, 212, 191, 0.02)');
 
     ctx.fillStyle = gradient;

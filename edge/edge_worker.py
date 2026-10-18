@@ -45,6 +45,8 @@ class EcoVisionPipeline:
         self.hysteresis_countdown = 0
         self.last_state = "IDLE"
         self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        self.smooth_box: Optional[List[float]] = None
+        self.last_valid_roi_box: Optional[List[int]] = None
 
     def process_frame(self, frame: np.ndarray) -> Dict[str, Any]:
         """
@@ -100,41 +102,68 @@ class EcoVisionPipeline:
         if state == "ACTIVE":
             self.frames_since_sent = 0
             
-            # Stage 3: ROI Bounding Box Extraction
+            # Stage 3: ROI Bounding Box Extraction with EMA Temporal Smoothing
             contours, _ = cv2.findContours(fg_mask_small, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            min_contour_area = 30
+            min_contour_area = 25
             valid_contours = [c for c in contours if cv2.contourArea(c) > min_contour_area]
             
             if valid_contours:
                 # Enclosing bounding box of all motion areas
-                x_min, y_min = w // 2, h // 2
-                x_max, y_max = 0, 0
-                for c in valid_contours:
-                    bx, by, bw, bh = cv2.boundingRect(c)
-                    x_min = min(x_min, bx)
-                    y_min = min(y_min, by)
-                    x_max = max(x_max, bx + bw)
-                    y_max = max(y_max, by + bh)
+                boxes = [cv2.boundingRect(c) for c in valid_contours]
+                x_min = min(b[0] for b in boxes)
+                y_min = min(b[1] for b in boxes)
+                x_max = max(b[0] + b[2] for b in boxes)
+                y_max = max(b[1] + b[3] for b in boxes)
                 
                 # Scale back to original frame coordinates
-                x_min *= 2
-                y_min *= 2
-                x_max *= 2
-                y_max *= 2
+                scale_x = w / float(small_frame.shape[1])
+                scale_y = h / float(small_frame.shape[0])
+                
+                rx_min = x_min * scale_x
+                ry_min = y_min * scale_y
+                rx_max = x_max * scale_x
+                ry_max = y_max * scale_y
                 
                 # Add safety margin padding
-                pad_w = int((x_max - x_min) * self.roi_padding_pct)
-                pad_h = int((y_max - y_min) * self.roi_padding_pct)
+                pad_w = (rx_max - rx_min) * self.roi_padding_pct
+                pad_h = (ry_max - ry_min) * self.roi_padding_pct
                 
-                rx0 = max(0, x_min - pad_w)
-                ry0 = max(0, y_min - pad_h)
-                rx1 = min(w, x_max + pad_w)
-                ry1 = min(h, y_max + pad_h)
-                rw = rx1 - rx0
-                rh = ry1 - ry0
+                target_x0 = max(0, rx_min - pad_w)
+                target_y0 = max(0, ry_min - pad_h)
+                target_x1 = min(w, rx_max + pad_w)
+                target_y1 = min(h, ry_max + pad_h)
+                target_w = target_x1 - target_x0
+                target_h = target_y1 - target_y0
                 
-                roi_box = [int(rx0), int(ry0), int(rw), int(rh)]
-                roi_crop = frame[ry0:ry1, rx0:rx1]
+                # Temporal smoothing (EMA)
+                if self.smooth_box is None:
+                    self.smooth_box = [float(target_x0), float(target_y0), float(target_w), float(target_h)]
+                else:
+                    alpha = 0.35
+                    self.smooth_box[0] += (target_x0 - self.smooth_box[0]) * alpha
+                    self.smooth_box[1] += (target_y0 - self.smooth_box[1]) * alpha
+                    self.smooth_box[2] += (target_w - self.smooth_box[2]) * alpha
+                    self.smooth_box[3] += (target_h - self.smooth_box[3]) * alpha
+                
+                cx0 = max(0, min(w - 20, int(round(self.smooth_box[0]))))
+                cy0 = max(0, min(h - 20, int(round(self.smooth_box[1]))))
+                cw = max(20, min(w - cx0, int(round(self.smooth_box[2]))))
+                ch = max(20, min(h - cy0, int(round(self.smooth_box[3]))))
+                
+                roi_box = [cx0, cy0, cw, ch]
+                self.last_valid_roi_box = roi_box
+                roi_crop = frame[cy0:cy0+ch, cx0:cx0+cw]
+            elif self.smooth_box is not None:
+                # During hysteresis cooldown, hold the stabilized bounding box
+                cx0 = max(0, min(w - 20, int(round(self.smooth_box[0]))))
+                cy0 = max(0, min(h - 20, int(round(self.smooth_box[1]))))
+                cw = max(20, min(w - cx0, int(round(self.smooth_box[2]))))
+                ch = max(20, min(h - cy0, int(round(self.smooth_box[3]))))
+                roi_box = [cx0, cy0, cw, ch]
+                roi_crop = frame[cy0:cy0+ch, cx0:cx0+cw]
+            elif self.last_valid_roi_box is not None:
+                roi_box = self.last_valid_roi_box
+                roi_crop = frame[roi_box[1]:roi_box[1]+roi_box[3], roi_box[0]:roi_box[0]+roi_box[2]]
             else:
                 roi_box = [0, 0, w, h]
                 roi_crop = frame
@@ -152,6 +181,7 @@ class EcoVisionPipeline:
             roi_b64 = "data:image/jpeg;base64," + base64.b64encode(roi_encoded).decode('utf-8')
             
         elif state == "HEARTBEAT":
+            self.smooth_box = None
             self.frames_since_sent = 0
             # Send periodic low-res heartbeat keyframe (1/4 scale)
             hb_frame = cv2.resize(frame, (max(16, w // 4), max(16, h // 4)))
@@ -161,6 +191,7 @@ class EcoVisionPipeline:
             roi_box = [0, 0, w, h]
             
         else: # IDLE
+            self.smooth_box = None
             # Only send minimal metadata heartbeat ping
             sent_bytes = 48
             roi_b64 = None

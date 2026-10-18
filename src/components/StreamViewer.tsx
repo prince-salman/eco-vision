@@ -40,6 +40,13 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<'both' | 'raw' | 'edge'>('both');
+  const [lastPythonB64, setLastPythonB64] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pythonStream?.roiB64) {
+      setLastPythonB64(pythonStream.roiB64);
+    }
+  }, [pythonStream?.roiB64]);
 
   // Synthetic sample scene simulation (Loading dock with intermittent pedestrian/vehicle)
   const drawSampleScene = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number, t: number) => {
@@ -86,6 +93,10 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
   // Main rendering loop for browser engine
   useEffect(() => {
     let animId: number;
+    let lastRenderTime = performance.now();
+    let lastCvProcessTime = 0;
+    const CV_INTERVAL_MS = 1000 / 15; // 15 FPS CV processing rate (~66.6ms)
+
     const analysisW = 128;
     const analysisH = 72;
 
@@ -96,10 +107,15 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
     const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
 
     const maskCtx = maskCanvasRef.current?.getContext('2d');
+    let latestTelemetry: TelemetryData | null = null;
 
-    const renderLoop = () => {
+    const renderLoop = (now: number) => {
       if (sourceMode !== 'python_live' && isPlaying) {
-        sampleTimeRef.current += 1 / 15;
+        // True physical elapsed time (prevents 4x speedup on 60Hz/120Hz screens)
+        const dt = Math.min(0.1, (now - lastRenderTime) / 1000);
+        lastRenderTime = now;
+        sampleTimeRef.current += dt;
+
         const rawCanvas = rawCanvasRef.current;
         const edgeCanvas = edgeCanvasRef.current;
 
@@ -126,17 +142,24 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
             }
           }
 
-          // Run Edge CV pipeline on analysis frame
-          const imgData = offCtx.getImageData(0, 0, analysisW, analysisH);
-          const tResult = pipelineRef.current.processFrame(imgData, w, h, maskCtx || undefined);
-          setTelemetry(tResult);
+          // Throttle CV processing & React state updates to target 15 FPS
+          if (now - lastCvProcessTime >= CV_INTERVAL_MS) {
+            lastCvProcessTime = now;
+            const imgData = offCtx.getImageData(0, 0, analysisW, analysisH);
+            const tResult = pipelineRef.current.processFrame(imgData, w, h, maskCtx || undefined);
+            latestTelemetry = tResult;
+            setTelemetry(tResult);
+          }
 
           // Render Eco-Vision Edge view
           if (edgeCtx) {
             edgeCtx.fillStyle = '#0B1318';
             edgeCtx.fillRect(0, 0, w, h);
 
-            if (tResult.state === 'ACTIVE' || tResult.state === 'HEARTBEAT') {
+            const curState = latestTelemetry?.state ?? 'IDLE';
+            const curRoi = latestTelemetry?.roiBox;
+
+            if (curState === 'ACTIVE' || curState === 'HEARTBEAT') {
               // Draw raw frame content
               if (sourceMode === 'browser_sample') {
                 drawSampleScene(edgeCtx, w, h, sampleTimeRef.current);
@@ -145,8 +168,8 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
               }
 
               // Dim static background if active ROI exists
-              if (tResult.state === 'ACTIVE' && tResult.roiBox) {
-                const [rx, ry, rw, rh] = tResult.roiBox;
+              if (curState === 'ACTIVE' && curRoi) {
+                const [rx, ry, rw, rh] = curRoi;
                 edgeCtx.fillStyle = 'rgba(11, 19, 24, 0.75)';
                 // Mask outside ROI
                 edgeCtx.fillRect(0, 0, w, ry);
@@ -173,16 +196,26 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
                 edgeCtx.stroke();
               }
             } else {
-              // IDLE: Dark power-saving mode
-              edgeCtx.fillStyle = 'rgba(17, 29, 36, 0.95)';
+              // IDLE: Dark power-saving mode (preserve dimmed frame so it doesn't flicker black)
+              if (sourceMode === 'browser_sample') {
+                drawSampleScene(edgeCtx, w, h, sampleTimeRef.current);
+              } else if (videoRef.current && videoRef.current.readyState >= 2) {
+                edgeCtx.drawImage(videoRef.current, 0, 0, w, h);
+              }
+              edgeCtx.fillStyle = 'rgba(11, 19, 24, 0.85)';
               edgeCtx.fillRect(0, 0, w, h);
-              edgeCtx.fillStyle = '#8A9FA8';
-              edgeCtx.font = '14px JetBrains Mono, monospace';
+              edgeCtx.fillStyle = '#2DD4BF';
+              edgeCtx.font = '13px JetBrains Mono, monospace';
               edgeCtx.textAlign = 'center';
-              edgeCtx.fillText('IDLE: Scene Unchanged — Uplink Throttled', w / 2, h / 2);
+              edgeCtx.fillText('IDLE: Scene Unchanged — Uplink Throttled', w / 2, h / 2 - 8);
+              edgeCtx.fillStyle = '#64748B';
+              edgeCtx.font = '11px JetBrains Mono, monospace';
+              edgeCtx.fillText('Zero redundant frames transmitted (48B heartbeat ping)', w / 2, h / 2 + 14);
             }
           }
         }
+      } else {
+        lastRenderTime = now;
       }
 
       animId = requestAnimationFrame(renderLoop);
@@ -384,14 +417,28 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
             </div>
 
             {/* Video Canvas */}
-            <div className="relative aspect-video bg-[#070D10] flex items-center justify-center">
+            <div className="relative aspect-video bg-[#070D10] flex items-center justify-center overflow-hidden">
               {sourceMode === 'python_live' ? (
-                activeTelemetry?.roiB64 ? (
-                  <img
-                    src={activeTelemetry.roiB64}
-                    alt="Eco-Vision ROI Feed"
-                    className="max-h-full max-w-full object-contain"
-                  />
+                (activeTelemetry?.roiB64 || lastPythonB64) ? (
+                  <div className="relative h-full w-full flex items-center justify-center">
+                    <img
+                      src={activeTelemetry?.roiB64 || lastPythonB64 || ''}
+                      alt="Eco-Vision ROI Feed"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                    {activeTelemetry?.state === 'IDLE' && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center">
+                        <div className="rounded-lg bg-eco-card/90 border border-eco-teal/30 p-3 max-w-xs shadow-lg">
+                          <p className="font-mono text-xs font-bold text-eco-teal">
+                            IDLE: Scene Unchanged
+                          </p>
+                          <p className="text-[11px] text-eco-muted mt-1 font-mono">
+                            Uplink throttled. 48B heartbeat ping active.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="p-6 text-center">
                     <Radio className="mx-auto h-8 w-8 text-eco-teal animate-pulse mb-2" />
