@@ -19,6 +19,7 @@ export class BrowserEdgePipeline {
   private sentFrames: number = 0;
   private framesSinceSent: number = 0;
   private hysteresisCountdown: number = 0;
+  private lastValidRoiBox: [number, number, number, number] | null = null;
 
   // Options
   public activityThreshold: number;
@@ -33,9 +34,9 @@ export class BrowserEdgePipeline {
   constructor(options: EdgeEngineOptions = {}) {
     this.w = options.analysisWidth ?? 128;
     this.h = options.analysisHeight ?? 72;
-    this.activityThreshold = options.activityThreshold ?? 0.015;
-    this.lumaThreshold = options.lumaThreshold ?? 25;
-    this.hysteresisFrames = options.hysteresisFrames ?? 12;
+    this.activityThreshold = options.activityThreshold ?? 0.005;
+    this.lumaThreshold = options.lumaThreshold ?? 20;
+    this.hysteresisFrames = options.hysteresisFrames ?? 15;
     this.heartbeatInterval = options.heartbeatInterval ?? 45;
     this.roiPaddingPct = options.roiPaddingPct ?? 0.10;
 
@@ -177,9 +178,14 @@ export class BrowserEdgePipeline {
         const roiH = natY1 - natY0;
 
         roiBox = [natX0, natY0, roiW, roiH];
+        this.lastValidRoiBox = roiBox;
         const roiAreaRatio = (roiW * roiH) / (nativeWidth * nativeHeight);
 
         // Sent bytes proportional to cropped ROI pixel area + 0.5% metadata
+        sentBytes = Math.round(baselineBytesPerFrame * (roiAreaRatio + 0.005));
+      } else if (this.lastValidRoiBox) {
+        roiBox = this.lastValidRoiBox;
+        const roiAreaRatio = (roiBox[2] * roiBox[3]) / (nativeWidth * nativeHeight);
         sentBytes = Math.round(baselineBytesPerFrame * (roiAreaRatio + 0.005));
       } else {
         roiBox = [0, 0, nativeWidth, nativeHeight];

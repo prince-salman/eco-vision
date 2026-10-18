@@ -194,22 +194,60 @@ async def ws_handler(websocket):
         connected_clients.remove(websocket)
         print(f"[WebSocket] Client disconnected")
 
-async def run_worker_loop(video_source: Any, pipeline: EcoVisionPipeline, fps: int = 15):
-    cap = cv2.VideoCapture(video_source)
-    if not cap.isOpened():
-        print(f"[Error] Could not open video source: {video_source}")
-        return
+def generate_synthetic_frame(t: float, w: int = 640, h: int = 360) -> np.ndarray:
+    """Generates a realistic test camera feed with moving object."""
+    frame = np.full((h, w, 3), (40, 30, 25), dtype=np.uint8)
+    # Floor
+    cv2.rectangle(frame, (0, int(h * 0.6)), (w, h), (70, 60, 50), -1)
+    # Static structure
+    cv2.rectangle(frame, (int(w * 0.1), int(h * 0.2)), (int(w * 0.35), int(h * 0.6)), (30, 25, 20), -1)
+    cv2.rectangle(frame, (int(w * 0.65), int(h * 0.2)), (int(w * 0.9), int(h * 0.6)), (30, 25, 20), -1)
+    
+    # Moving object cycle
+    cycle = 10.0
+    phase = t % cycle
+    if phase < 4.0:
+        prog = phase / 4.0
+        x = int(-60 + (w + 120) * prog)
+        y = int(h * 0.55)
+        # Moving box
+        cv2.rectangle(frame, (x, y), (x + 80, y + 50), (220, 220, 230), -1)
+        cv2.rectangle(frame, (x + 15, y - 25), (x + 65, y), (20, 160, 240), -1)
+    
+    # Add subtle sensor noise
+    noise = np.random.normal(0, 3, (h, w, 3)).astype(np.int16)
+    noisy_frame = np.clip(frame.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+    return noisy_frame
 
-    print(f"[Eco-Vision Edge] Capturing from {video_source} at ~{fps} FPS...")
+async def run_worker_loop(video_source: Any, pipeline: EcoVisionPipeline, fps: int = 15):
+    if str(video_source).lower() == "synthetic":
+        use_synthetic = True
+    elif isinstance(video_source, int) or (isinstance(video_source, str) and video_source.isdigit()):
+        cap = cv2.VideoCapture(int(video_source))
+        if not cap.isOpened():
+            print(f"[Notice] Physical webcam index {video_source} not accessible. Using high-fidelity synthetic CCTV stream.")
+            use_synthetic = True
+    else:
+        cap = cv2.VideoCapture(video_source)
+        if not cap.isOpened():
+            print(f"[Notice] Video file '{video_source}' not found. Using high-fidelity synthetic CCTV stream.")
+            use_synthetic = True
+
+    print(f"[Eco-Vision Edge] Capturing at ~{fps} FPS ({'Live Webcam' if not use_synthetic else 'Synthetic CCTV Stream'})...")
     interval = 1.0 / fps
+    sim_t = 0.0
 
     try:
         while True:
             start_t = time.time()
-            ret, frame = cap.read()
-            if not ret:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                continue
+            if use_synthetic or cap is None:
+                sim_t += interval
+                frame = generate_synthetic_frame(sim_t)
+            else:
+                ret, frame = cap.read()
+                if not ret:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    continue
 
             telemetry = pipeline.process_frame(frame)
             
@@ -225,7 +263,8 @@ async def run_worker_loop(video_source: Any, pipeline: EcoVisionPipeline, fps: i
             await asyncio.sleep(sleep_time)
 
     finally:
-        cap.release()
+        if cap is not None:
+            cap.release()
 
 async def main(host: str = "0.0.0.0", port: int = 8765, video_source: Any = 0):
     pipeline = EcoVisionPipeline()
@@ -234,12 +273,11 @@ async def main(host: str = "0.0.0.0", port: int = 8765, video_source: Any = 0):
     print(f"  WebSocket server listening on ws://{host}:{port}")
     print(f"==================================================")
     
-    server = await websockets.serve(ws_handler, host, port)
-    await run_worker_loop(video_source, pipeline)
-
+    async with websockets.serve(ws_handler, host, port):
+        await run_worker_loop(video_source, pipeline)
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Eco-Vision Architecture Edge Worker")
-    parser.add_argument("--source", default=0, help="Camera index (e.g. 0) or path to video file")
+    parser.add_argument("--source", default="synthetic", help="Camera index (e.g. 0), path to video file, or 'synthetic'")
     parser.add_argument("--host", default="0.0.0.0", help="Host address for WebSocket server")
     parser.add_argument("--port", type=int, default=8765, help="Port for WebSocket server")
     args = parser.parse_args()
