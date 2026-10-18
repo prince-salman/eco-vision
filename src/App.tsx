@@ -5,8 +5,6 @@ import { TelemetryBar } from './components/TelemetryBar';
 import { BandwidthChart } from './components/BandwidthChart';
 import { MacroSimulator } from './components/MacroSimulator';
 import { ArchitectureStages } from './components/ArchitectureStages';
-import { EssayModal } from './components/EssayModal';
-import { TeamCard } from './components/TeamCard';
 import { useVideoFeed } from './hooks/useVideoFeed';
 import { useEdgeWebSocket } from './hooks/useEdgeWebSocket';
 import { TelemetryData } from './types';
@@ -14,8 +12,6 @@ import { Terminal, Shield, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
-  const [isEssayOpen, setIsEssayOpen] = useState(false);
-  const [isTeamOpen, setIsTeamOpen] = useState(false);
 
   // Hook for handling video input (Webcam / Upload / Sample)
   const videoFeed = useVideoFeed();
@@ -29,8 +25,6 @@ export default function App() {
     <div className="min-h-screen bg-eco-bg text-eco-ink font-sans selection:bg-eco-teal/20 selection:text-eco-teal flex flex-col">
       {/* Top Navbar */}
       <Navbar
-        onOpenEssay={() => setIsEssayOpen(true)}
-        onOpenTeam={() => setIsTeamOpen(true)}
         isPythonConnected={edgeWs.isConnected}
         sourceMode={videoFeed.sourceMode}
       />
@@ -45,7 +39,7 @@ export default function App() {
               <span>Interactive Edge Computer Vision Prototype</span>
             </span>
             <span className="text-xs text-eco-muted font-mono">
-              7th International Youth Summit • President University
+              Edge AI & Sustainable Vision Computing
             </span>
           </div>
 
@@ -121,23 +115,17 @@ export default function App() {
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-eco-teal" />
             <span className="font-semibold text-eco-ink">Eco-Vision Architecture</span>
-            <span>— President University Research Prototype</span>
+            <span>— Intelligent Edge Computer Vision System</span>
           </div>
-          <div className="flex items-center gap-4 font-mono text-[11px]">
-            <span>Firza Miftahul Ilmi</span>
+          <div className="flex items-center gap-2 font-mono text-[11px] text-eco-muted">
+            <span>Edge Computing</span>
             <span>•</span>
-            <span>Muhamad Salman</span>
+            <span>Green AI</span>
             <span>•</span>
-            <span>Immanuel Elvando Kenjam</span>
-            <span>•</span>
-            <span>Citra Ayu Setyoningputri</span>
+            <span>Data Center Efficiency</span>
           </div>
         </div>
       </footer>
-
-      {/* Modals */}
-      <EssayModal isOpen={isEssayOpen} onClose={() => setIsEssayOpen(false)} />
-      <TeamCard isOpen={isTeamOpen} onClose={() => setIsTeamOpen(false)} />
     </div>
   );
 }

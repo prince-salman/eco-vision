@@ -1,15 +1,11 @@
-import { Leaf, BookOpen, Users, Cpu } from 'lucide-react';
+import { Leaf, Cpu } from 'lucide-react';
 
 interface NavbarProps {
-  onOpenEssay: () => void;
-  onOpenTeam: () => void;
   isPythonConnected: boolean;
   sourceMode: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  onOpenEssay,
-  onOpenTeam,
   isPythonConnected,
   sourceMode,
 }) => {
@@ -31,38 +27,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-eco-muted font-sans hidden sm:block">
-              Edge Computer Vision Pre-Processing • President University
+              Edge Computer Vision Pre-Processing Architecture
             </p>
           </div>
         </div>
 
         {/* Live Engine Status */}
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 rounded-lg border border-eco-border bg-eco-card px-3 py-1.5 text-xs font-mono">
+          <div className="flex items-center gap-2 rounded-lg border border-eco-border bg-eco-card px-3 py-1.5 text-xs font-mono">
             <Cpu className="h-3.5 w-3.5 text-eco-teal" />
-            <span className="text-eco-muted">Engine:</span>
+            <span className="text-eco-muted hidden sm:inline">Engine:</span>
             <span className="text-eco-ink font-semibold">
               {sourceMode === 'python_live' ? 'Python Edge Worker' : 'In-Browser Client CV'}
             </span>
             <div className={`h-2 w-2 rounded-full ${isPythonConnected || sourceMode !== 'python_live' ? 'bg-eco-green animate-pulse' : 'bg-eco-amber'}`} />
           </div>
-
-          {/* Action buttons */}
-          <button
-            onClick={onOpenEssay}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-surface px-3 py-1.5 text-xs font-semibold text-eco-ink hover:border-eco-teal/50 hover:bg-eco-card transition-all"
-          >
-            <BookOpen className="h-3.5 w-3.5 text-eco-teal" />
-            <span>IYS Essay</span>
-          </button>
-
-          <button
-            onClick={onOpenTeam}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-surface px-3 py-1.5 text-xs font-semibold text-eco-ink hover:border-eco-teal/50 hover:bg-eco-card transition-all"
-          >
-            <Users className="h-3.5 w-3.5 text-eco-teal" />
-            <span>Team</span>
-          </button>
         </div>
       </div>
     </header>
