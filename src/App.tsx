@@ -262,13 +262,13 @@ export default function App() {
             <span>— Sustainable Vision Computing & Edge Fleet Orchestration</span>
           </div>
           <div className="flex items-center gap-2 font-mono text-[11px] text-eco-muted">
-            <span>President University</span>
+            <span>Enterprise Edge Fleet</span>
             <span>•</span>
-            <span>7th IYS Summit</span>
+            <span>Green AI Appliance</span>
             <span>•</span>
-            <span>Green AI</span>
+            <span>Edge Pipeline v2.4</span>
             <span>•</span>
-            <span>Backend v2.4 (FastAPI + SQLite)</span>
+            <span>FastAPI + Edge CV</span>
           </div>
         </div>
       </footer>
