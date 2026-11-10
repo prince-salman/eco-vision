@@ -26,15 +26,13 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendConnected }) => {
   const [isPlaying, setIsPlaying] = useState(true);
   const heroVideoRef = useRef<HTMLVideoElement | null>(null);
-  const ambientVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Guarantee autoplay on mount
+  // Guarantee instant hardware-accelerated autoplay
   useEffect(() => {
     if (heroVideoRef.current) {
+      heroVideoRef.current.defaultMuted = true;
+      heroVideoRef.current.muted = true;
       heroVideoRef.current.play().catch(() => {});
-    }
-    if (ambientVideoRef.current) {
-      ambientVideoRef.current.play().catch(() => {});
     }
   }, []);
 
@@ -42,10 +40,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
     if (heroVideoRef.current) {
       if (isPlaying) {
         heroVideoRef.current.pause();
-        if (ambientVideoRef.current) ambientVideoRef.current.pause();
       } else {
         heroVideoRef.current.play().catch(() => {});
-        if (ambientVideoRef.current) ambientVideoRef.current.play().catch(() => {});
       }
       setIsPlaying(!isPlaying);
     }
@@ -53,23 +49,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
 
   return (
     <div className="relative space-y-20 pb-20 overflow-hidden">
-      {/* ───── 1. AMBIENT BACKGROUND VIDEO LAYER (UPPER HERO) ───── */}
-      <div className="absolute top-0 left-0 right-0 h-[850px] -z-10 overflow-hidden pointer-events-none">
-        <video
-          ref={ambientVideoRef}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover opacity-30 filter saturate-150 contrast-125 scale-105"
-        >
-          <source src="/videos/surveillance-bg.mp4" type="video/mp4" />
-        </video>
-
-        {/* Soft emerald & white vignette so text is always 100% readable */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/80 to-[#F8FAFC]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-300/30 via-transparent to-transparent" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0596690a_1px,transparent_1px),linear-gradient(to_bottom,#0596690a_1px,transparent_1px)] bg-[size:3.5rem_3.5rem]" />
+      {/* ───── 1. LIGHTWEIGHT HIGH-TECH BACKGROUND LAYER (NO CPU STUTTER) ───── */}
+      <div className="absolute top-0 left-0 right-0 h-[800px] -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-200/50 via-emerald-50/20 to-[#F8FAFC]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0596690d_1px,transparent_1px),linear-gradient(to_bottom,#0596690d_1px,transparent_1px)] bg-[size:3.5rem_3.5rem]" />
       </div>
 
       {/* ───── 2. HERO SECTION ───── */}
@@ -88,7 +71,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
 
           <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-100/90 px-3 py-1 text-[11px] font-mono font-bold text-emerald-800 shadow-xs">
             <Video className="h-3.5 w-3.5 text-emerald-700 animate-pulse" />
-            <span>REAL-TIME CCTV STREAM ACTIVE</span>
+            <span>REAL-TIME CCTV STREAM (60 FPS FLUID)</span>
           </div>
         </div>
 
@@ -152,7 +135,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
         </div>
       </section>
 
-      {/* ───── 3. PROMINENT HERO CCTV VIDEO PLAYER & TELEMETRY SHOWCASE ───── */}
+      {/* ───── 3. SILKY-SMOOTH HARDWARE-ACCELERATED VIDEO SHOWCASE CARD ───── */}
       <section className="relative rounded-3xl border-2 border-emerald-200 bg-white p-5 sm:p-7 shadow-2xl shadow-emerald-950/10 max-w-6xl mx-auto overflow-hidden">
         {/* Card Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -185,7 +168,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
           </div>
         </div>
 
-        {/* 🎬 REAL CCTV VIDEO PLAYER WITH ON-SCREEN DISPLAY (OSD) HUD */}
+        {/* 🎬 REAL CCTV VIDEO PLAYER (OPTIMIZED 30 FPS FLUID STREAM) */}
         <div className="relative mt-5 rounded-2xl overflow-hidden border-2 border-emerald-400/80 bg-slate-950 shadow-2xl aspect-video sm:aspect-[21/9] group">
           <video
             ref={heroVideoRef}
@@ -193,7 +176,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
             loop
             muted
             playsInline
-            className="w-full h-full object-cover filter contrast-110 saturate-125"
+            preload="auto"
+            className="w-full h-full object-cover will-change-transform"
           >
             <source src="/videos/surveillance-bg.mp4" type="video/mp4" />
           </video>
