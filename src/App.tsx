@@ -15,7 +15,7 @@ import { Shield, Sparkles, Terminal } from 'lucide-react';
 
 export default function App() {
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
-  // Default to Main Landing Page so users don't jump directly into the raw machine/engine
+  // Default to Main Landing Page with background surveillance video & bright white-green theme
   const [activeTab, setActiveTab] = useState<ActiveNavTab>('home');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
@@ -76,7 +76,7 @@ export default function App() {
   }, [activeTelemetry, isBackendConnected]);
 
   return (
-    <div className="min-h-screen bg-eco-bg text-eco-ink font-sans selection:bg-eco-teal/20 selection:text-eco-teal flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-emerald-100 selection:text-emerald-900 flex flex-col">
       {/* Top Navbar */}
       <Navbar
         isPythonConnected={edgeWs.isConnected}
@@ -95,19 +95,19 @@ export default function App() {
 
         {/* ───── OPERATIONS / FLEET / SIMULATOR / LOG HEADER ───── */}
         {activeTab !== 'home' && (
-          <div className="space-y-2 border-b border-eco-border/80 pb-6">
+          <div className="space-y-2 border-b border-slate-200 pb-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-eco-teal/10 px-3 py-1 font-mono text-xs font-semibold text-eco-teal border border-eco-teal/30">
-                    <Sparkles className="h-3.5 w-3.5" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 font-mono text-xs font-semibold text-emerald-800 border border-emerald-300">
+                    <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
                     <span>Control Room & Operations</span>
                   </span>
-                  <span className="text-xs text-eco-muted font-mono">
+                  <span className="text-xs text-slate-500 font-mono">
                     Hardware In-the-Loop Edge Vision
                   </span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold font-serif tracking-tight text-eco-ink">
+                <h1 className="text-2xl sm:text-3xl font-extrabold font-serif tracking-tight text-slate-900">
                   {activeTab === 'operations' && 'Live Camera Operations & Pipeline Visualizer'}
                   {activeTab === 'fleet' && 'Fleet & Distributed Edge Nodes'}
                   {activeTab === 'simulator' && 'Macro Model Calculator (Section 3.3)'}
@@ -118,7 +118,7 @@ export default function App() {
               {/* Back to Home Button */}
               <button
                 onClick={() => setActiveTab('home')}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-surface px-3 py-1.5 text-xs font-medium text-eco-muted hover:text-eco-ink hover:border-eco-teal/40 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-emerald-800 hover:border-emerald-300 transition-colors shadow-2xs"
               >
                 <span>← Back to Overview</span>
               </button>
@@ -129,7 +129,7 @@ export default function App() {
               <button
                 onClick={() => setActiveTab('operations')}
                 className={`rounded-lg px-3 py-1.5 border transition-all ${
-                  activeTab === 'operations' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
+                  activeTab === 'operations' ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
                 }`}
               >
                 🎥 Live Video & Dual Viewer
@@ -137,7 +137,7 @@ export default function App() {
               <button
                 onClick={() => setActiveTab('fleet')}
                 className={`rounded-lg px-3 py-1.5 border transition-all ${
-                  activeTab === 'fleet' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
+                  activeTab === 'fleet' ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
                 }`}
               >
                 🏢 Fleet & Edge Nodes
@@ -145,7 +145,7 @@ export default function App() {
               <button
                 onClick={() => setActiveTab('simulator')}
                 className={`rounded-lg px-3 py-1.5 border transition-all ${
-                  activeTab === 'simulator' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
+                  activeTab === 'simulator' ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
                 }`}
               >
                 📊 Section 3.3 Calculator
@@ -153,7 +153,7 @@ export default function App() {
               <button
                 onClick={() => setActiveTab('log')}
                 className={`rounded-lg px-3 py-1.5 border transition-all ${
-                  activeTab === 'log' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
+                  activeTab === 'log' ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
                 }`}
               >
                 📋 Detection Event Log
@@ -195,17 +195,17 @@ export default function App() {
 
             {/* Python Edge Worker Quick Guide */}
             {videoFeed.sourceMode === 'python_live' && (
-              <section className="rounded-xl border border-eco-teal/30 bg-eco-card p-5 space-y-3">
-                <div className="flex items-center gap-2 text-eco-teal">
+              <section className="rounded-xl border border-emerald-200 bg-white p-5 space-y-3 shadow-sm">
+                <div className="flex items-center gap-2 text-emerald-700">
                   <Terminal className="h-5 w-5" />
                   <h3 className="text-sm font-bold font-mono">Run Standalone Python Edge Worker</h3>
                 </div>
-                <p className="text-xs text-eco-muted leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed">
                   Connect any real webcam or CCTV RTSP feed through the companion Python worker script:
                 </p>
-                <div className="rounded-lg bg-black/60 p-3 font-mono text-xs text-eco-ink border border-eco-border/80 flex items-center justify-between">
+                <div className="rounded-lg bg-slate-900 p-3 font-mono text-xs text-emerald-400 border border-slate-800 flex items-center justify-between">
                   <code>python edge/edge_worker.py --source synthetic --port 8765</code>
-                  <span className="text-[11px] text-eco-muted">Status: {edgeWs.isConnected ? '● Connected' : 'Waiting...'}</span>
+                  <span className="text-[11px] text-slate-400">Status: {edgeWs.isConnected ? '● Connected' : 'Waiting...'}</span>
                 </div>
               </section>
             )}
@@ -240,17 +240,17 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-12 border-t border-eco-border bg-eco-surface/50 py-6 text-xs text-eco-muted">
+      <footer className="mt-16 border-t border-slate-200 bg-white py-7 text-xs text-slate-500 shadow-2xs">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-eco-teal" />
-            <span className="font-semibold text-eco-ink">Eco-Vision Architecture</span>
+            <Shield className="h-4 w-4 text-emerald-600" />
+            <span className="font-semibold text-slate-800">Eco-Vision Architecture</span>
             <span>— Sustainable Vision Computing & Edge Fleet Orchestration</span>
           </div>
-          <div className="flex items-center gap-2 font-mono text-[11px] text-eco-muted">
+          <div className="flex items-center gap-2 font-mono text-[11px] text-slate-500">
             <span>Enterprise Edge Fleet</span>
             <span>•</span>
-            <span>Green AI Appliance</span>
+            <span className="text-emerald-700 font-semibold">Green AI Appliance</span>
             <span>•</span>
             <span>Edge Pipeline v2.4</span>
             <span>•</span>

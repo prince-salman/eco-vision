@@ -27,33 +27,33 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-eco-border bg-eco-bg/95 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         {/* Brand (Click to go Home) */}
         <button 
           onClick={() => setActiveTab('home')}
           className="flex items-center gap-3 text-left transition-opacity hover:opacity-90"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-eco-teal/15 border border-eco-teal/40 text-eco-teal shadow-md shadow-eco-teal/10">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-700 shadow-sm">
             <Leaf className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-serif text-lg font-bold tracking-tight text-eco-ink">
+              <span className="font-serif text-lg font-bold tracking-tight text-slate-900">
                 Eco-Vision
               </span>
-              <span className="rounded-full bg-eco-teal/15 text-eco-teal border border-eco-teal/30 px-2 py-0.5 text-[10px] font-mono font-bold">
+              <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-mono font-bold">
                 PRODUCTION v2.4
               </span>
             </div>
-            <p className="text-[11px] text-eco-muted font-sans hidden sm:block">
-              Edge Computer Vision Pre-Processing Platform
+            <p className="text-[11px] text-slate-500 font-sans hidden sm:block">
+              Sustainable Vision & Edge Fleet Platform
             </p>
           </div>
         </button>
 
         {/* Navigation Tabs (Desktop) */}
-        <nav className="hidden lg:flex items-center gap-1 rounded-xl border border-eco-border bg-eco-surface p-1">
+        <nav className="hidden lg:flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1">
           {NAV_ITEMS.map((item) => {
             const isActive = activeTab === item.id;
             return (
@@ -62,8 +62,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => setActiveTab(item.id)}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                   isActive
-                    ? 'bg-eco-card text-eco-teal border border-eco-teal/40 shadow-xs'
-                    : 'text-eco-muted hover:text-eco-ink hover:bg-eco-card/50'
+                    ? 'bg-white text-emerald-800 border border-emerald-200 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                 }`}
               >
                 {item.icon}
@@ -79,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {activeTab === 'home' && (
             <button
               onClick={() => setActiveTab('operations')}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-eco-teal px-3 py-1.5 text-xs font-bold text-eco-bg hover:bg-eco-emerald transition-colors shadow-sm"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-sm"
             >
               <span>Launch Console</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -87,28 +87,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Backend Status */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-card px-2.5 py-1 text-[11px] font-mono">
-            <span className="text-eco-muted hidden md:inline">API:</span>
-            <div className={`h-2 w-2 rounded-full ${isBackendConnected ? 'bg-eco-green animate-pulse' : 'bg-eco-muted'}`} />
-            <span className={isBackendConnected ? 'text-eco-ink font-semibold' : 'text-eco-muted'}>
+          <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-mono shadow-2xs">
+            <span className="text-slate-500 hidden md:inline">API:</span>
+            <div className={`h-2 w-2 rounded-full ${isBackendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+            <span className={isBackendConnected ? 'text-slate-800 font-semibold' : 'text-slate-500'}>
               {isBackendConnected ? ':8001' : 'Local'}
             </span>
           </div>
 
           {/* Edge Status */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-card px-2.5 py-1 text-[11px] font-mono">
-            <Cpu className="h-3 w-3 text-eco-teal" />
-            <span className="text-eco-muted hidden md:inline">Edge:</span>
-            <span className="text-eco-ink font-semibold">
+          <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-mono shadow-2xs">
+            <Cpu className="h-3 w-3 text-emerald-600" />
+            <span className="text-slate-500 hidden md:inline">Edge:</span>
+            <span className="text-slate-800 font-semibold">
               {sourceMode === 'python_live' ? 'Python' : 'Browser CV'}
             </span>
-            <div className={`h-2 w-2 rounded-full ${isPythonConnected || sourceMode !== 'python_live' ? 'bg-eco-green' : 'bg-eco-amber'}`} />
+            <div className={`h-2 w-2 rounded-full ${isPythonConnected || sourceMode !== 'python_live' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
           </div>
         </div>
       </div>
 
       {/* Mobile Tab Navigation */}
-      <div className="lg:hidden border-t border-eco-border/60 bg-eco-surface/50 px-3 py-1.5 overflow-x-auto flex items-center gap-1">
+      <div className="lg:hidden border-t border-slate-200 bg-slate-50 px-3 py-1.5 overflow-x-auto flex items-center gap-1">
         {NAV_ITEMS.map((item) => {
           const isActive = activeTab === item.id;
           return (
@@ -117,8 +117,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab(item.id)}
               className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-medium ${
                 isActive
-                  ? 'bg-eco-card text-eco-teal border border-eco-teal/30 shadow-xs font-bold'
-                  : 'text-eco-muted hover:text-eco-ink'
+                  ? 'bg-white text-emerald-800 border border-emerald-300 shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {item.icon}

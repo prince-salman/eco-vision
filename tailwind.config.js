@@ -9,18 +9,18 @@ export default {
     extend: {
       colors: {
         eco: {
-          bg: '#0B1318',
-          surface: '#111D24',
-          card: '#16252E',
-          border: '#243A46',
-          muted: '#8A9FA8',
-          ink: '#E8F1F5',
-          teal: '#2DD4BF',
-          accent: '#0D9488',
-          green: '#10B981',
-          emerald: '#34D399',
-          amber: '#F59E0B',
-          coral: '#F87171',
+          bg: '#F8FAFC',        // Crisp bright white-slate background
+          surface: '#FFFFFF',   // Pure white surface
+          card: '#FFFFFF',      // Pure white card with soft shadows
+          border: '#E2E8F0',    // Crisp border
+          muted: '#64748B',     // Legible slate muted text
+          ink: '#0F172A',       // Deep high-contrast ink text
+          teal: '#059669',      // Rich emerald green primary
+          accent: '#10B981',    // Vibrant mint accent
+          green: '#16A34A',     // Green
+          emerald: '#047857',   // Deep emerald
+          amber: '#D97706',     // Amber
+          coral: '#EF4444',     // Coral red
         }
       },
       fontFamily: {
