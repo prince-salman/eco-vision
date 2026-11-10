@@ -1,7 +1,7 @@
 import React from 'react';
-import { Leaf, Cpu, Video, Server, Sliders, FileText } from 'lucide-react';
+import { Leaf, Cpu, Video, Server, Sliders, FileText, Home, ArrowRight } from 'lucide-react';
 
-export type ActiveNavTab = 'operations' | 'fleet' | 'simulator' | 'log';
+export type ActiveNavTab = 'home' | 'operations' | 'fleet' | 'simulator' | 'log';
 
 interface NavbarProps {
   isPythonConnected: boolean;
@@ -19,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
 }) => {
   const NAV_ITEMS: { id: ActiveNavTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'home', label: 'Overview', icon: <Home className="h-4 w-4" /> },
     { id: 'operations', label: 'Live Operations', icon: <Video className="h-4 w-4" /> },
     { id: 'fleet', label: 'Fleet & Edge Nodes', icon: <Server className="h-4 w-4" /> },
     { id: 'simulator', label: 'Macro Model (3.3)', icon: <Sliders className="h-4 w-4" /> },
@@ -28,8 +29,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 border-b border-eco-border bg-eco-bg/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-        {/* Brand */}
-        <div className="flex items-center gap-3">
+        {/* Brand (Click to go Home) */}
+        <button 
+          onClick={() => setActiveTab('home')}
+          className="flex items-center gap-3 text-left transition-opacity hover:opacity-90"
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-eco-teal/15 border border-eco-teal/40 text-eco-teal shadow-md shadow-eco-teal/10">
             <Leaf className="h-5 w-5" />
           </div>
@@ -43,10 +47,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-eco-muted font-sans hidden sm:block">
-              Edge Computer Vision Pre-Processing & Fleet Platform
+              Edge Computer Vision Pre-Processing Platform
             </p>
           </div>
-        </div>
+        </button>
 
         {/* Navigation Tabs (Desktop) */}
         <nav className="hidden lg:flex items-center gap-1 rounded-xl border border-eco-border bg-eco-surface p-1">
@@ -69,18 +73,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           })}
         </nav>
 
-        {/* Live System Connectivity Badges */}
+        {/* Right Action & Badges */}
         <div className="flex items-center gap-2">
+          {/* Quick Launch Console button if on Home */}
+          {activeTab === 'home' && (
+            <button
+              onClick={() => setActiveTab('operations')}
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-eco-teal px-3 py-1.5 text-xs font-bold text-eco-bg hover:bg-eco-emerald transition-colors shadow-sm"
+            >
+              <span>Launch Console</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+
           {/* Backend Status */}
           <div className="flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-card px-2.5 py-1 text-[11px] font-mono">
-            <span className="text-eco-muted hidden md:inline">Backend API:</span>
+            <span className="text-eco-muted hidden md:inline">API:</span>
             <div className={`h-2 w-2 rounded-full ${isBackendConnected ? 'bg-eco-green animate-pulse' : 'bg-eco-muted'}`} />
             <span className={isBackendConnected ? 'text-eco-ink font-semibold' : 'text-eco-muted'}>
-              {isBackendConnected ? ':8001' : 'Offline'}
+              {isBackendConnected ? ':8001' : 'Local'}
             </span>
           </div>
 
-          {/* Edge Worker Status */}
+          {/* Edge Status */}
           <div className="flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-card px-2.5 py-1 text-[11px] font-mono">
             <Cpu className="h-3 w-3 text-eco-teal" />
             <span className="text-eco-muted hidden md:inline">Edge:</span>

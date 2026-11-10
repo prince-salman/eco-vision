@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Navbar, ActiveNavTab } from './components/Navbar';
+import { LandingPage } from './components/LandingPage';
 import { StreamViewer } from './components/StreamViewer';
 import { TelemetryBar } from './components/TelemetryBar';
 import { BandwidthChart } from './components/BandwidthChart';
@@ -14,7 +15,8 @@ import { Shield, Sparkles, Terminal } from 'lucide-react';
 
 export default function App() {
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveNavTab>('operations');
+  // Default to Main Landing Page so users don't jump directly into the raw machine/engine
+  const [activeTab, setActiveTab] = useState<ActiveNavTab>('home');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   // Hook for handling video input (Webcam / Upload / Sample)
@@ -86,63 +88,79 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 space-y-8">
-        {/* Header Title & Subtitle */}
-        <div className="space-y-2 border-b border-eco-border/80 pb-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-eco-teal/10 px-3 py-1 font-mono text-xs font-semibold text-eco-teal border border-eco-teal/30">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Production Platform & Edge Fleet Architecture</span>
-            </span>
-            <span className="text-xs text-eco-muted font-mono">
-              Mitigating Data Center Resource Consumption
-            </span>
-          </div>
+        {/* ───── TAB: HOME / LANDING PAGE ───── */}
+        {activeTab === 'home' && (
+          <LandingPage onNavigate={setActiveTab} isBackendConnected={isBackendConnected} />
+        )}
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold font-serif tracking-tight text-eco-ink">
-            Eco-Vision Architecture
-          </h1>
-          <p className="text-sm sm:text-base text-eco-muted max-w-4xl leading-relaxed">
-            Decide at the camera lens what is worth sending. An edge pre-processor filters temporal redundancy, 
-            skips idle frames, and crops active regions of interest (ROI) — slashing upstream network bandwidth by ~89.5%, 
-            cloud GPU inference FLOPs by 90%, and data center evaporative cooling consumption by roughly 30 million liters annually.
-          </p>
+        {/* ───── OPERATIONS / FLEET / SIMULATOR / LOG HEADER ───── */}
+        {activeTab !== 'home' && (
+          <div className="space-y-2 border-b border-eco-border/80 pb-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-eco-teal/10 px-3 py-1 font-mono text-xs font-semibold text-eco-teal border border-eco-teal/30">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Control Room & Operations</span>
+                  </span>
+                  <span className="text-xs text-eco-muted font-mono">
+                    Hardware In-the-Loop Edge Vision
+                  </span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold font-serif tracking-tight text-eco-ink">
+                  {activeTab === 'operations' && 'Live Camera Operations & Pipeline Visualizer'}
+                  {activeTab === 'fleet' && 'Fleet & Distributed Edge Nodes'}
+                  {activeTab === 'simulator' && 'Macro Model Calculator (Section 3.3)'}
+                  {activeTab === 'log' && 'Real-Time Detection Event Log'}
+                </h1>
+              </div>
 
-          {/* Quick Tab Switcher Pills */}
-          <div className="pt-2 flex flex-wrap gap-2 text-xs font-medium">
-            <button
-              onClick={() => setActiveTab('operations')}
-              className={`rounded-lg px-3 py-1.5 border transition-all ${
-                activeTab === 'operations' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
-              }`}
-            >
-              🎥 Live Video & Dual Viewer
-            </button>
-            <button
-              onClick={() => setActiveTab('fleet')}
-              className={`rounded-lg px-3 py-1.5 border transition-all ${
-                activeTab === 'fleet' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
-              }`}
-            >
-              🏢 Fleet & Edge Nodes
-            </button>
-            <button
-              onClick={() => setActiveTab('simulator')}
-              className={`rounded-lg px-3 py-1.5 border transition-all ${
-                activeTab === 'simulator' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
-              }`}
-            >
-              📊 Section 3.3 Calculator
-            </button>
-            <button
-              onClick={() => setActiveTab('log')}
-              className={`rounded-lg px-3 py-1.5 border transition-all ${
-                activeTab === 'log' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
-              }`}
-            >
-              📋 Detection Event Log
-            </button>
+              {/* Back to Home Button */}
+              <button
+                onClick={() => setActiveTab('home')}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-surface px-3 py-1.5 text-xs font-medium text-eco-muted hover:text-eco-ink hover:border-eco-teal/40 transition-colors"
+              >
+                <span>← Back to Overview</span>
+              </button>
+            </div>
+
+            {/* Quick Tab Switcher Pills */}
+            <div className="pt-3 flex flex-wrap gap-2 text-xs font-medium">
+              <button
+                onClick={() => setActiveTab('operations')}
+                className={`rounded-lg px-3 py-1.5 border transition-all ${
+                  activeTab === 'operations' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
+                }`}
+              >
+                🎥 Live Video & Dual Viewer
+              </button>
+              <button
+                onClick={() => setActiveTab('fleet')}
+                className={`rounded-lg px-3 py-1.5 border transition-all ${
+                  activeTab === 'fleet' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
+                }`}
+              >
+                🏢 Fleet & Edge Nodes
+              </button>
+              <button
+                onClick={() => setActiveTab('simulator')}
+                className={`rounded-lg px-3 py-1.5 border transition-all ${
+                  activeTab === 'simulator' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
+                }`}
+              >
+                📊 Section 3.3 Calculator
+              </button>
+              <button
+                onClick={() => setActiveTab('log')}
+                className={`rounded-lg px-3 py-1.5 border transition-all ${
+                  activeTab === 'log' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
+                }`}
+              >
+                📋 Detection Event Log
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ───── TAB 1: OPERATIONS ───── */}
         {activeTab === 'operations' && (
