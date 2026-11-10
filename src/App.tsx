@@ -7,7 +7,6 @@ import DetectionLog from './components/DetectionLog';
 import { MacroSimulator } from './components/MacroSimulator';
 import { ArchitectureStages } from './components/ArchitectureStages';
 import { FleetManager } from './components/FleetManager';
-import { ApiExplorer } from './components/ApiExplorer';
 import { ResearchWhitepaper } from './components/ResearchWhitepaper';
 import { useVideoFeed } from './hooks/useVideoFeed';
 import { useEdgeWebSocket } from './hooks/useEdgeWebSocket';
@@ -144,14 +143,6 @@ export default function App() {
               📋 Detection Event Log
             </button>
             <button
-              onClick={() => setActiveTab('api')}
-              className={`rounded-lg px-3 py-1.5 border transition-all ${
-                activeTab === 'api' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
-              }`}
-            >
-              🔌 REST API & VMS
-            </button>
-            <button
               onClick={() => setActiveTab('whitepaper')}
               className={`rounded-lg px-3 py-1.5 border transition-all ${
                 activeTab === 'whitepaper' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
@@ -238,14 +229,7 @@ export default function App() {
           </section>
         )}
 
-        {/* ───── TAB 5: REST API & VMS ───── */}
-        {activeTab === 'api' && (
-          <section>
-            <ApiExplorer />
-          </section>
-        )}
-
-        {/* ───── TAB 6: RESEARCH WHITEPAPER ───── */}
+        {/* ───── TAB 5: RESEARCH WHITEPAPER ───── */}
         {activeTab === 'whitepaper' && (
           <section>
             <ResearchWhitepaper />
