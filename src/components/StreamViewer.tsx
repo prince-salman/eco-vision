@@ -461,6 +461,93 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* 🚀 QUICK-START PLAYGROUND GUIDE BANNER */}
+      <div className="rounded-2xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 via-white to-teal-50 p-4 sm:p-5 shadow-sm space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-600"></span>
+            </span>
+            <h3 className="font-bold text-slate-900 text-sm font-sans">
+              Pusat Pengujian Interaktif (Quick Demo Playground)
+            </h3>
+            <span className="text-[11px] font-mono text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
+              100% Berfungsi di Browser Anda
+            </span>
+          </div>
+          <span className="text-xs text-slate-500 font-mono">
+            Pilih salah satu cara coba di bawah:
+          </span>
+        </div>
+
+        {/* 4 Big Action Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {/* Button 1: Test Motion Now */}
+          <button
+            onClick={() => {
+              setSourceMode('browser_sample');
+              handleInjectMotion('Test Pedestrian');
+            }}
+            className="group flex items-center gap-2.5 rounded-xl border border-emerald-300 bg-white p-3 text-left shadow-xs hover:border-emerald-500 hover:bg-emerald-50/80 transition-all hover:scale-[1.02] cursor-pointer"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
+              <Zap className="h-5 w-5 fill-white" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-slate-900">1. Uji Gerakan Otomatis</div>
+              <div className="text-[11px] text-slate-500">Munculkan orang & lihat ROI terlacak</div>
+            </div>
+          </button>
+
+          {/* Button 2: Laptop Webcam */}
+          <button
+            onClick={() => setSourceMode('browser_webcam')}
+            className={`group flex items-center gap-2.5 rounded-xl border p-3 text-left shadow-xs transition-all hover:scale-[1.02] cursor-pointer ${
+              sourceMode === 'browser_webcam' 
+                ? 'border-emerald-500 bg-emerald-100/70' 
+                : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50'
+            }`}
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white shadow-xs">
+              <Camera className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-slate-900">2. Pakai Kamera Laptop</div>
+              <div className="text-[11px] text-slate-500">Gerakkan tangan di depan webcam</div>
+            </div>
+          </button>
+
+          {/* Button 3: Upload Video */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="group flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xs hover:border-emerald-300 hover:bg-slate-50 transition-all hover:scale-[1.02] cursor-pointer"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-600 text-white shadow-xs">
+              <Upload className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-slate-900">3. Upload File Video</div>
+              <div className="text-[11px] text-slate-500">Pilih rekaman .mp4 dari PC</div>
+            </div>
+          </button>
+
+          {/* Button 4: Run Benchmark */}
+          <button
+            onClick={() => setShowBenchmarkModal(true)}
+            className="group flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xs hover:border-emerald-300 hover:bg-slate-50 transition-all hover:scale-[1.02] cursor-pointer"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-white shadow-xs">
+              <Activity className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-slate-900">4. Stress-Test 60-Frame</div>
+              <div className="text-[11px] text-slate-500">Uji latensi edge & unduh audit</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Top Source & Mode Control Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-eco-border bg-eco-card p-3 shadow-lg">
         {/* Source Mode Buttons */}
