@@ -93,72 +93,24 @@ export default function App() {
           <LandingPage onNavigate={setActiveTab} isBackendConnected={isBackendConnected} />
         )}
 
-        {/* ───── OPERATIONS / FLEET / SIMULATOR / LOG HEADER ───── */}
+        {/* ───── OPERATIONS / FLEET / SIMULATOR / LOG HEADER (NO DUPLICATE PILLS) ───── */}
         {activeTab !== 'home' && (
-          <div className="space-y-2 border-b border-slate-200 pb-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 font-mono text-xs font-semibold text-emerald-800 border border-emerald-300">
-                    <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Control Room & Operations</span>
-                  </span>
-                  <span className="text-xs text-slate-500 font-mono">
-                    Hardware In-the-Loop Edge Vision
-                  </span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold font-serif tracking-tight text-slate-900">
-                  {activeTab === 'operations' && 'Live Camera Operations & Pipeline Visualizer'}
-                  {activeTab === 'fleet' && 'Fleet & Distributed Edge Nodes'}
-                  {activeTab === 'simulator' && 'Macro Model Calculator (Section 3.3)'}
-                  {activeTab === 'log' && 'Real-Time Detection Event Log'}
-                </h1>
-              </div>
-
-              {/* Back to Home Button */}
-              <button
-                onClick={() => setActiveTab('home')}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-emerald-800 hover:border-emerald-300 transition-colors shadow-2xs"
-              >
-                <span>← Back to Overview</span>
-              </button>
+          <div className="space-y-1 border-b border-slate-200 pb-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-0.5 font-mono text-xs font-semibold text-emerald-800 border border-emerald-300">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Control Room & Operations</span>
+              </span>
+              <span className="text-xs text-slate-500 font-mono">
+                Hardware In-the-Loop Edge Vision
+              </span>
             </div>
-
-            {/* Quick Tab Switcher Pills */}
-            <div className="pt-3 flex flex-wrap gap-2 text-xs font-medium">
-              <button
-                onClick={() => setActiveTab('operations')}
-                className={`rounded-lg px-3 py-1.5 border transition-all ${
-                  activeTab === 'operations' ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
-                }`}
-              >
-                🎥 Live Video & Dual Viewer
-              </button>
-              <button
-                onClick={() => setActiveTab('fleet')}
-                className={`rounded-lg px-3 py-1.5 border transition-all ${
-                  activeTab === 'fleet' ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
-                }`}
-              >
-                🏢 Fleet & Edge Nodes
-              </button>
-              <button
-                onClick={() => setActiveTab('simulator')}
-                className={`rounded-lg px-3 py-1.5 border transition-all ${
-                  activeTab === 'simulator' ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
-                }`}
-              >
-                📊 Section 3.3 Calculator
-              </button>
-              <button
-                onClick={() => setActiveTab('log')}
-                className={`rounded-lg px-3 py-1.5 border transition-all ${
-                  activeTab === 'log' ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-800'
-                }`}
-              >
-                📋 Detection Event Log
-              </button>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold font-serif tracking-tight text-slate-900">
+              {activeTab === 'operations' && 'Live Camera Operations & Pipeline Visualizer'}
+              {activeTab === 'fleet' && 'Fleet & Distributed Edge Nodes'}
+              {activeTab === 'simulator' && 'Macro Model Calculator (Section 3.3)'}
+              {activeTab === 'log' && 'Real-Time Detection Event Log'}
+            </h1>
           </div>
         )}
 
