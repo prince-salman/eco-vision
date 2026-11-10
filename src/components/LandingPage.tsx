@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowRight, 
   Play, 
+  Pause,
   Shield, 
   Cpu, 
   Zap, 
@@ -23,55 +24,72 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendConnected }) => {
-  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const heroVideoRef = useRef<HTMLVideoElement | null>(null);
+  const ambientVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Guarantee autoplay on mount
+  useEffect(() => {
+    if (heroVideoRef.current) {
+      heroVideoRef.current.play().catch(() => {});
+    }
+    if (ambientVideoRef.current) {
+      ambientVideoRef.current.play().catch(() => {});
+    }
+  }, []);
+
+  const togglePlay = () => {
+    if (heroVideoRef.current) {
+      if (isPlaying) {
+        heroVideoRef.current.pause();
+        if (ambientVideoRef.current) ambientVideoRef.current.pause();
+      } else {
+        heroVideoRef.current.play().catch(() => {});
+        if (ambientVideoRef.current) ambientVideoRef.current.play().catch(() => {});
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
 
   return (
     <div className="relative space-y-20 pb-20 overflow-hidden">
-      {/* ───── BACKGROUND VIDEO LAYER WITH FRESH WHITE-GREEN OVERLAY ───── */}
-      <div className="absolute top-0 left-0 right-0 h-[720px] -z-10 overflow-hidden pointer-events-none">
-        {/* Actual CCTV Surveillance Background Video */}
-        {isVideoPlaying && (
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover opacity-35 filter saturate-150 contrast-110"
-          >
-            <source src="/videos/surveillance-bg.mp4" type="video/mp4" />
-          </video>
-        )}
+      {/* ───── 1. AMBIENT BACKGROUND VIDEO LAYER (UPPER HERO) ───── */}
+      <div className="absolute top-0 left-0 right-0 h-[850px] -z-10 overflow-hidden pointer-events-none">
+        <video
+          ref={ambientVideoRef}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover opacity-30 filter saturate-150 contrast-125 scale-105"
+        >
+          <source src="/videos/surveillance-bg.mp4" type="video/mp4" />
+        </video>
 
-        {/* Ambient Gradient Overlay: Fades video into crisp white & soft emerald */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/85 to-[#F8FAFC]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-200/40 via-transparent to-transparent" />
-        
-        {/* Subtle high-tech grid lines */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0596690a_1px,transparent_1px),linear-gradient(to_bottom,#0596690a_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+        {/* Soft emerald & white vignette so text is always 100% readable */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/80 to-[#F8FAFC]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-300/30 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0596690a_1px,transparent_1px),linear-gradient(to_bottom,#0596690a_1px,transparent_1px)] bg-[size:3.5rem_3.5rem]" />
       </div>
 
-      {/* ───── 1. HERO SECTION ───── */}
+      {/* ───── 2. HERO SECTION ───── */}
       <section className="relative pt-6 sm:pt-14 text-center max-w-5xl mx-auto space-y-8">
-        {/* Top Badges & Live Video Status Pill */}
+        {/* Top Badges */}
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-white/90 px-4 py-1.5 text-xs font-mono text-emerald-800 shadow-sm backdrop-blur-md">
-            <span className="flex h-2 w-2 relative">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-white/95 px-4 py-1.5 text-xs font-mono text-emerald-800 shadow-sm backdrop-blur-md">
+            <span className="flex h-2.5 w-2.5 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
             </span>
             <span className="font-bold tracking-wide">ECO-VISION PRODUCTION v2.4</span>
             <span className="text-slate-300">•</span>
             <span className="text-slate-600 font-sans font-medium">Sustainable Edge AI Fleet</span>
           </div>
 
-          <button
-            onClick={() => setIsVideoPlaying(!isVideoPlaying)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/90 px-3 py-1 text-[11px] font-mono text-emerald-700 hover:bg-emerald-100 transition-colors pointer-events-auto"
-            title="Toggle background ambient video"
-          >
-            <Video className="h-3 w-3 text-emerald-600" />
-            <span>{isVideoPlaying ? 'Ambient Video: Playing' : 'Ambient Video: Paused'}</span>
-          </button>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-100/90 px-3 py-1 text-[11px] font-mono font-bold text-emerald-800 shadow-xs">
+            <Video className="h-3.5 w-3.5 text-emerald-700 animate-pulse" />
+            <span>REAL-TIME CCTV STREAM ACTIVE</span>
+          </div>
         </div>
 
         {/* Main Headline */}
@@ -118,7 +136,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
         </div>
 
         {/* Live System Status Badges */}
-        <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs font-mono text-slate-500">
+        <div className="flex flex-wrap items-center justify-center gap-6 pt-2 text-xs font-mono text-slate-500">
           <div className="flex items-center gap-2">
             <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-slate-700 font-semibold">Edge Engine: Ready (Browser WASM + Python)</span>
@@ -134,8 +152,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
         </div>
       </section>
 
-      {/* ───── 2. INTERACTIVE CONSOLE PREVIEW CARD (BRIGHT WHITE & EMERALD) ───── */}
-      <section className="relative rounded-2xl border border-emerald-200/80 bg-white p-5 sm:p-7 shadow-2xl shadow-emerald-950/5 max-w-6xl mx-auto overflow-hidden">
+      {/* ───── 3. PROMINENT HERO CCTV VIDEO PLAYER & TELEMETRY SHOWCASE ───── */}
+      <section className="relative rounded-3xl border-2 border-emerald-200 bg-white p-5 sm:p-7 shadow-2xl shadow-emerald-950/10 max-w-6xl mx-auto overflow-hidden">
         {/* Card Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
@@ -145,26 +163,95 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
               <div className="h-3 w-3 rounded-full bg-emerald-500" />
             </div>
             <span className="font-mono text-xs font-semibold text-slate-700">
-              eco-vision://console/live-operations
+              eco-vision://live-feed/cam-01/traffic-corridor
             </span>
           </div>
 
           <div className="flex items-center gap-2 font-mono text-xs">
-            <span className="rounded-md bg-emerald-100 text-emerald-800 px-2.5 py-1 font-bold border border-emerald-200">
-              ● REAL-TIME EDGE CV
-            </span>
+            <button
+              onClick={togglePlay}
+              className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 font-mono text-xs transition-colors"
+            >
+              {isPlaying ? <Pause className="h-3.5 w-3.5 text-slate-600" /> : <Play className="h-3.5 w-3.5 text-emerald-600" />}
+              <span>{isPlaying ? 'Pause Video' : 'Play Video'}</span>
+            </button>
             <button
               onClick={() => onNavigate('operations')}
-              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1 font-sans text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3.5 py-1 font-sans text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-xs"
             >
-              <span>Open Full Console</span>
-              <ArrowRight className="h-3 w-3" />
+              <span>Launch Control Room</span>
+              <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
+        {/* 🎬 REAL CCTV VIDEO PLAYER WITH ON-SCREEN DISPLAY (OSD) HUD */}
+        <div className="relative mt-5 rounded-2xl overflow-hidden border-2 border-emerald-400/80 bg-slate-950 shadow-2xl aspect-video sm:aspect-[21/9] group">
+          <video
+            ref={heroVideoRef}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover filter contrast-110 saturate-125"
+          >
+            <source src="/videos/surveillance-bg.mp4" type="video/mp4" />
+          </video>
+
+          {/* OSD Surveillance HUD Overlay */}
+          <div className="absolute inset-0 pointer-events-none p-4 sm:p-6 flex flex-col justify-between bg-gradient-to-t from-black/80 via-transparent to-black/60">
+            {/* Top OSD Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-emerald-400">
+              <div className="flex items-center gap-2.5 bg-black/70 px-3 py-1.5 rounded-lg border border-emerald-500/30 backdrop-blur-md">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
+                <span className="text-white font-extrabold tracking-wider">LIVE REC</span>
+                <span className="text-emerald-300">CAM-01 • TRAFFIC CORRIDOR</span>
+                <span className="text-slate-400 hidden sm:inline">1080p @ 30FPS</span>
+              </div>
+              <div className="bg-emerald-950/80 border border-emerald-400/50 px-3 py-1.5 rounded-lg text-emerald-300 font-bold backdrop-blur-md">
+                ⚡ IN-LENS EDGE FILTER: ACTIVE [89.5% SAVED]
+              </div>
+            </div>
+
+            {/* Dynamic Simulated Edge Bounding Box Target */}
+            <div className="absolute top-[35%] left-[28%] w-36 h-48 border-2 border-emerald-400 rounded-lg bg-emerald-400/10 pointer-events-none animate-pulse">
+              <span className="absolute -top-6 left-0 bg-emerald-600 text-white text-[11px] font-mono px-2 py-0.5 rounded font-bold shadow-md">
+                PEDESTRIAN 98.4%
+              </span>
+              <div className="absolute bottom-1 right-1 font-mono text-[9px] text-emerald-300 bg-black/60 px-1 rounded">
+                ROI [144×192]
+              </div>
+            </div>
+
+            <div className="absolute top-[45%] right-[22%] w-48 h-32 border-2 border-cyan-400 rounded-lg bg-cyan-400/10 pointer-events-none">
+              <span className="absolute -top-6 left-0 bg-cyan-600 text-white text-[11px] font-mono px-2 py-0.5 rounded font-bold shadow-md">
+                VEHICLE 96.1%
+              </span>
+            </div>
+
+            {/* Bottom OSD Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-black/75 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-lg text-xs font-mono font-bold backdrop-blur-md">
+                  Transmitting ROI: 368 kbps <span className="text-slate-400 line-through ml-1">3,500 kbps</span>
+                </span>
+                <span className="bg-black/75 text-cyan-300 border border-cyan-500/40 px-3 py-1.5 rounded-lg text-xs font-mono font-bold backdrop-blur-md hidden sm:inline">
+                  Latency: 2.8 ms (ESP32-S3)
+                </span>
+              </div>
+              <button
+                onClick={() => onNavigate('operations')}
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition-all shadow-lg hover:scale-105"
+              >
+                <span>Enter Operations Room</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Telemetry Highlight Bento Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 py-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 pt-6">
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 transition-transform hover:-translate-y-0.5">
             <div className="text-[11px] font-mono text-emerald-800 font-semibold flex items-center gap-1.5">
               <Zap className="h-4 w-4 text-emerald-600" />
@@ -201,33 +288,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
             <div className="text-xs text-slate-500 mt-1">Annual datacenter impact</div>
           </div>
         </div>
-
-        {/* Visual Teaser Callout Banner */}
-        <div 
-          onClick={() => onNavigate('operations')}
-          className="group relative cursor-pointer rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-teal-50 p-8 text-center transition-all hover:border-emerald-400 hover:shadow-md overflow-hidden"
-        >
-          <div className="space-y-3">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/30 group-hover:scale-110 transition-transform">
-              <Video className="h-7 w-7" />
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 font-serif">
-              Click to Open Live Interactive CCTV Simulator & Webcam
-            </h3>
-            <p className="text-sm text-slate-600 max-w-xl mx-auto">
-              Test all 4 surveillance scenarios (Loading Dock, Server Vault, Campus Gate, Night IR) with live click-to-inject target motion, or switch to your real laptop webcam!
-            </p>
-            <div className="pt-2">
-              <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white group-hover:bg-emerald-700 transition-colors shadow-sm">
-                <span>Enter Operations Room</span>
-                <ArrowRight className="h-4 w-4" />
-              </span>
-            </div>
-          </div>
-        </div>
       </section>
 
-      {/* ───── 3. PROBLEM VS SOLUTION (PARADIGM SHIFT) ───── */}
+      {/* ───── 4. PROBLEM VS SOLUTION (PARADIGM SHIFT) ───── */}
       <section className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-2">
           <span className="font-mono text-xs uppercase tracking-wider text-emerald-700 font-bold bg-emerald-100 px-3 py-1 rounded-full">
@@ -308,7 +371,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
         </div>
       </section>
 
-      {/* ───── 4. THE 4-STAGE PIPELINE WALKTHROUGH ───── */}
+      {/* ───── 5. THE 4-STAGE PIPELINE WALKTHROUGH ───── */}
       <section className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-2">
           <span className="font-mono text-xs uppercase tracking-wider text-emerald-700 font-bold bg-emerald-100 px-3 py-1 rounded-full">
@@ -377,7 +440,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
         </div>
       </section>
 
-      {/* ───── 5. HARDWARE PLATFORM COMPATIBILITY ───── */}
+      {/* ───── 6. HARDWARE PLATFORM COMPATIBILITY ───── */}
       <section className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-2">
           <span className="font-mono text-xs uppercase tracking-wider text-emerald-700 font-bold bg-emerald-100 px-3 py-1 rounded-full">
@@ -430,7 +493,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, isBackendC
         </div>
       </section>
 
-      {/* ───── 6. FINAL BOTTOM CTA BANNER (BRIGHT EMERALD THEME) ───── */}
+      {/* ───── 7. FINAL BOTTOM CTA BANNER (BRIGHT EMERALD THEME) ───── */}
       <section className="max-w-5xl mx-auto rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 p-8 sm:p-12 text-center space-y-6 shadow-xl text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-300/10 rounded-full blur-3xl pointer-events-none" />
