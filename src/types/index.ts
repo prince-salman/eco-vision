@@ -41,6 +41,12 @@ export interface TelemetryData {
   cumulativeEnergySavedWh: number;
   cumulativeCo2AvoidedGrams: number;
   cumulativeWaterSavedMl: number;
+  latencyMs: number;
+  embeddingPreview?: number[];
+  activeBlockCount?: number;
+  totalBlocks?: number;
+  activeBlockGrid?: number[];
+  hardwareMemoryKb?: number;
 }
 
 export interface MacroParams {

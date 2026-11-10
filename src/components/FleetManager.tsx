@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Server, Wifi, Plus, Trash2, Shield, Activity, RefreshCw } from 'lucide-react';
+import { Server, Wifi, Plus, Trash2, Shield, Activity, RefreshCw, CheckCircle2 } from 'lucide-react';
 
 interface CameraNode {
   id: string;
@@ -14,57 +14,68 @@ interface CameraNode {
   last_heartbeat: string;
 }
 
+const DEFAULT_FLEET: CameraNode[] = [
+  {
+    id: "cam-01",
+    name: "Loading Dock Alpha",
+    location: "Industrial Logistics Bay 04 East",
+    rtsp_url: "rtsp://192.168.1.101:554/ch01",
+    status: "ONLINE",
+    resolution: "1080p",
+    fps: 15,
+    power_draw_w: 2.0,
+    firmware_version: "v2.4.1-edge",
+    last_heartbeat: new Date().toISOString()
+  },
+  {
+    id: "cam-02",
+    name: "Corridor Logistics Bravo",
+    location: "Server Vault Corridor Row B",
+    rtsp_url: "rtsp://192.168.1.102:554/ch01",
+    status: "IDLE",
+    resolution: "1080p",
+    fps: 15,
+    power_draw_w: 1.8,
+    firmware_version: "v2.4.1-edge",
+    last_heartbeat: new Date().toISOString()
+  },
+  {
+    id: "cam-03",
+    name: "Campus Main Gate Delta",
+    location: "President University Entrance Checkpoint",
+    rtsp_url: "rtsp://192.168.1.103:554/ch01",
+    status: "ONLINE",
+    resolution: "1080p",
+    fps: 15,
+    power_draw_w: 2.0,
+    firmware_version: "v2.4.1-edge",
+    last_heartbeat: new Date().toISOString()
+  },
+  {
+    id: "cam-04",
+    name: "Perimeter Fence Charlie",
+    location: "North Security Boundary (Night IR)",
+    rtsp_url: "rtsp://192.168.1.104:554/ch01",
+    status: "IDLE",
+    resolution: "1080p",
+    fps: 15,
+    power_draw_w: 2.1,
+    firmware_version: "v2.4.1-edge",
+    last_heartbeat: new Date().toISOString()
+  }
+];
+
 export const FleetManager: React.FC = () => {
-  const [cameras, setCameras] = useState<CameraNode[]>([
-    {
-      id: "cam-01",
-      name: "Loading Dock Alpha",
-      location: "Industrial Logistics Bay",
-      rtsp_url: "rtsp://192.168.1.101:554/ch01",
-      status: "ONLINE",
-      resolution: "1080p",
-      fps: 15,
-      power_draw_w: 2.0,
-      firmware_version: "v2.4.1-edge",
-      last_heartbeat: new Date().toISOString()
-    },
-    {
-      id: "cam-02",
-      name: "Corridor Logistics Bravo",
-      location: "Storage Facility Floor 2",
-      rtsp_url: "rtsp://192.168.1.102:554/ch01",
-      status: "IDLE",
-      resolution: "1080p",
-      fps: 15,
-      power_draw_w: 1.8,
-      firmware_version: "v2.4.1-edge",
-      last_heartbeat: new Date().toISOString()
-    },
-    {
-      id: "cam-03",
-      name: "Perimeter Fence Charlie",
-      location: "North Security Boundary",
-      rtsp_url: "rtsp://192.168.1.103:554/ch01",
-      status: "IDLE",
-      resolution: "1080p",
-      fps: 15,
-      power_draw_w: 2.1,
-      firmware_version: "v2.4.1-edge",
-      last_heartbeat: new Date().toISOString()
-    },
-    {
-      id: "cam-04",
-      name: "Campus Main Gate Delta",
-      location: "President University Entrance",
-      rtsp_url: "rtsp://192.168.1.104:554/ch01",
-      status: "ONLINE",
-      resolution: "1080p",
-      fps: 15,
-      power_draw_w: 2.0,
-      firmware_version: "v2.4.1-edge",
-      last_heartbeat: new Date().toISOString()
-    }
-  ]);
+  const [cameras, setCameras] = useState<CameraNode[]>(() => {
+    try {
+      const saved = localStorage.getItem('ecovision_fleet_cameras');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_FLEET;
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -77,6 +88,12 @@ export const FleetManager: React.FC = () => {
     fps: 15,
     power_draw_w: 2.0
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ecovision_fleet_cameras', JSON.stringify(cameras));
+    } catch {}
+  }, [cameras]);
 
   const fetchCameras = async () => {
     setIsLoading(true);
@@ -113,7 +130,6 @@ export const FleetManager: React.FC = () => {
         const created = await res.json();
         setCameras(prev => [...prev, created]);
       } else {
-        // Fallback local
         setCameras(prev => [...prev, {
           ...newCam,
           status: 'ONLINE',
@@ -207,17 +223,21 @@ export const FleetManager: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <span className="hidden md:inline-flex items-center gap-1 rounded-full bg-eco-teal/10 px-2.5 py-1 text-xs font-mono text-eco-teal border border-eco-teal/20">
+              <CheckCircle2 className="h-3 w-3" />
+              <span>Offline-Resilient Sync</span>
+            </span>
             <button
               onClick={fetchCameras}
               disabled={isLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-surface px-3 py-1.5 text-xs text-eco-muted hover:text-eco-ink"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-eco-border bg-eco-surface px-3 py-1.5 text-xs text-eco-muted hover:text-eco-ink cursor-pointer"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin text-eco-teal' : ''}`} />
               <span>Refresh</span>
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-eco-teal px-3 py-1.5 text-xs font-semibold text-eco-bg hover:bg-eco-teal/90 shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-eco-teal px-3 py-1.5 text-xs font-semibold text-eco-bg hover:bg-eco-teal/90 shadow-sm cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Register Node</span>
@@ -262,7 +282,7 @@ export const FleetManager: React.FC = () => {
                   <td className="px-6 py-3.5 text-right">
                     <button
                       onClick={() => handleDelete(cam.id)}
-                      className="text-eco-muted hover:text-eco-coral transition-colors p-1"
+                      className="text-eco-muted hover:text-eco-coral transition-colors p-1 cursor-pointer"
                       title="Decommission Node"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -286,7 +306,7 @@ export const FleetManager: React.FC = () => {
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-xs text-eco-muted hover:text-eco-ink font-mono"
+                className="text-xs text-eco-muted hover:text-eco-ink font-mono cursor-pointer"
               >
                 ✕
               </button>
@@ -367,13 +387,13 @@ export const FleetManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="rounded-lg border border-eco-border px-4 py-2 text-xs font-semibold text-eco-muted hover:text-eco-ink"
+                  className="rounded-lg border border-eco-border px-4 py-2 text-xs font-semibold text-eco-muted hover:text-eco-ink cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-eco-teal px-4 py-2 text-xs font-semibold text-eco-bg hover:bg-eco-teal/90 shadow-sm"
+                  className="rounded-lg bg-eco-teal px-4 py-2 text-xs font-semibold text-eco-bg hover:bg-eco-teal/90 shadow-sm cursor-pointer"
                 >
                   Add Node
                 </button>

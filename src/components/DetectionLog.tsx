@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, Trash2 } from 'lucide-react';
+import { Download, Trash2, ShieldCheck, Database } from 'lucide-react';
 import type { TelemetryData } from '../types';
 
 interface LogEvent {
@@ -19,7 +19,6 @@ interface DetectionLogProps {
 }
 
 const MAX_EVENTS = 200;
-const VISIBLE_ROWS = 12;
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -78,19 +77,31 @@ function eventsToCSV(events: LogEvent[]): string {
 let globalIdCounter = 0;
 
 export default function DetectionLog({ telemetry }: DetectionLogProps) {
-  const [log, setLog] = useState<LogEvent[]>([]);
+  const [log, setLog] = useState<LogEvent[]>(() => {
+    try {
+      const saved = localStorage.getItem('ecovision_detection_log');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const lastTimestampRef = useRef<number | null>(null);
   const tableBottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ecovision_detection_log', JSON.stringify(log));
+    } catch {}
+  }, [log]);
 
   useEffect(() => {
     if (!telemetry) return;
     if (lastTimestampRef.current === telemetry.timestamp) return;
     lastTimestampRef.current = telemetry.timestamp;
 
-    const roiW =
-      telemetry.roiBox ? telemetry.roiBox[2] - telemetry.roiBox[0] : null;
-    const roiH =
-      telemetry.roiBox ? telemetry.roiBox[3] - telemetry.roiBox[1] : null;
+    const roiW = telemetry.roiBox ? telemetry.roiBox[2] : null;
+    const roiH = telemetry.roiBox ? telemetry.roiBox[3] : null;
 
     const event: LogEvent = {
       id: ++globalIdCounter,
@@ -129,103 +140,86 @@ export default function DetectionLog({ telemetry }: DetectionLogProps) {
 
   function handleClear() {
     setLog([]);
-    lastTimestampRef.current = null;
+    try {
+      localStorage.removeItem('ecovision_detection_log');
+    } catch {}
   }
 
-  const rowHeight = 36; // px, approximate
-  const maxHeight = VISIBLE_ROWS * rowHeight;
-
   return (
-    <div className="rounded-xl border border-eco-border bg-eco-card p-4 flex flex-col gap-3">
+    <div className="rounded-xl border border-eco-border bg-eco-card p-4 shadow-lg space-y-4 font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-eco-ink">
-          Detection Log{' '}
-          <span className="text-eco-muted font-normal">({log.length} events)</span>
-        </h3>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-eco-border pb-3">
+        <div className="flex items-center gap-2">
+          <Database className="h-4 w-4 text-eco-teal" />
+          <h3 className="font-serif text-sm font-bold text-eco-ink">
+            Live Detection Event Log ({log.length} events)
+          </h3>
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-eco-teal/10 px-2 py-0.5 text-[10px] font-mono text-eco-teal border border-eco-teal/20">
+            <ShieldCheck className="h-3 w-3" />
+            <span>Persisted Local & Cloud Relay</span>
+          </span>
+        </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={handleExport}
             disabled={log.length === 0}
-            title="Export CSV"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium
-                       bg-eco-surface border border-eco-border text-eco-ink
-                       hover:bg-eco-teal/10 hover:border-eco-teal/40 hover:text-eco-teal
-                       disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-eco-teal/15 border border-eco-teal/40 px-3 py-1.5 text-xs font-mono font-semibold text-eco-teal hover:bg-eco-teal/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5" />
-            CSV
+            <Download className="h-3.5 w-3.5" />
+            <span>Export CSV</span>
           </button>
           <button
             onClick={handleClear}
             disabled={log.length === 0}
-            title="Clear log"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium
-                       bg-eco-surface border border-eco-border text-eco-ink
-                       hover:bg-red-400/10 hover:border-red-400/40 hover:text-red-400
-                       disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-eco-border px-3 py-1.5 text-xs font-mono text-eco-muted hover:text-eco-coral hover:border-eco-coral/40 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Clear</span>
           </button>
         </div>
       </div>
 
-      {/* Table */}
-      {log.length === 0 ? (
-        <div className="flex items-center justify-center py-8 text-eco-muted text-sm">
-          Waiting for telemetry data...
-        </div>
-      ) : (
-        <div
-          className="overflow-y-auto rounded-lg border border-eco-border"
-          style={{ maxHeight }}
-        >
-          <table className="w-full text-xs font-mono border-collapse">
-            <thead className="sticky top-0 bg-eco-surface z-10">
-              <tr className="text-eco-muted text-left">
-                <th className="px-3 py-2 font-medium whitespace-nowrap">Time</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">Zone</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">State</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap text-right">Activity%</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap text-right">ROI (W×H)</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap text-right">kbps</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap text-right">Saved%</th>
+      {/* Table Container */}
+      <div className="relative overflow-x-auto rounded-lg border border-eco-border bg-eco-surface/50 max-h-80 overflow-y-auto">
+        {log.length === 0 ? (
+          <div className="p-8 text-center text-xs font-mono text-eco-muted">
+            Waiting for edge camera telemetry data...
+          </div>
+        ) : (
+          <table className="w-full text-left text-xs font-mono">
+            <thead className="sticky top-0 bg-eco-card border-b border-eco-border text-[11px] text-eco-muted uppercase">
+              <tr>
+                <th className="p-2.5">Time</th>
+                <th className="p-2.5">Zone</th>
+                <th className="p-2.5">State</th>
+                <th className="p-2.5">Activity</th>
+                <th className="p-2.5">ROI Extents</th>
+                <th className="p-2.5">Uplink</th>
+                <th className="p-2.5 text-right">Saved</th>
               </tr>
             </thead>
-            <tbody>
-              {log.map((e, i) => (
-                <tr
-                  key={e.id}
-                  className={`border-t border-eco-border transition-colors
-                    ${i % 2 === 0 ? 'bg-eco-card' : 'bg-eco-surface/50'}
-                    hover:bg-eco-teal/5`}
-                >
-                  <td className="px-3 py-2 text-eco-muted whitespace-nowrap">{e.timestamp}</td>
-                  <td className="px-3 py-2 text-eco-ink whitespace-nowrap">{e.zone}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+            <tbody className="divide-y divide-eco-border/40 text-eco-ink">
+              {log.map((e) => (
+                <tr key={e.id} className="hover:bg-eco-surface/70 transition-colors">
+                  <td className="p-2.5 text-eco-muted">{e.timestamp}</td>
+                  <td className="p-2.5">{e.zone}</td>
+                  <td className="p-2.5">
                     <StateBadge state={e.state} />
                   </td>
-                  <td className="px-3 py-2 text-eco-ink text-right whitespace-nowrap">
-                    {e.activityPct.toFixed(1)}%
+                  <td className="p-2.5 text-eco-teal font-semibold">{e.activityPct}%</td>
+                  <td className="p-2.5 text-eco-muted">
+                    {e.roiW && e.roiH ? `${e.roiW}×${e.roiH} px` : '— (None)'}
                   </td>
-                  <td className="px-3 py-2 text-eco-muted text-right whitespace-nowrap">
-                    {e.roiW !== null && e.roiH !== null
-                      ? `${e.roiW}×${e.roiH}`
-                      : '—'}
-                  </td>
-                  <td className="px-3 py-2 text-eco-ink text-right whitespace-nowrap">
-                    {e.kbps.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-2 text-eco-ink text-right whitespace-nowrap">
-                    {e.savedPct.toFixed(1)}%
-                  </td>
+                  <td className="p-2.5">{e.kbps} Kbps</td>
+                  <td className="p-2.5 text-right font-bold text-eco-green">{e.savedPct}%</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div ref={tableBottomRef} />
-        </div>
-      )}
+        )}
+        <div ref={tableBottomRef} />
+      </div>
     </div>
   );
 }

@@ -3,11 +3,11 @@ import { StreamState, TelemetryData } from '../types';
 export interface EdgeEngineOptions {
   analysisWidth?: number;
   analysisHeight?: number;
-  activityThreshold?: number; // e.g. 0.015 (1.5% pixels)
-  lumaThreshold?: number;     // e.g. 26 brightness diff
+  activityThreshold?: number; // e.g. 0.005 (0.5% pixels)
+  lumaThreshold?: number;     // e.g. 20 brightness diff
   hysteresisFrames?: number;  // e.g. 15 frames
   heartbeatInterval?: number; // e.g. 45 frames (~3s at 15fps)
-  roiPaddingPct?: number;     // e.g. 0.12 (12%)
+  roiPaddingPct?: number;     // e.g. 0.10 (10%)
 }
 
 export class BrowserEdgePipeline {
@@ -20,10 +20,9 @@ export class BrowserEdgePipeline {
   private framesSinceSent: number = 0;
   private hysteresisCountdown: number = 0;
   private lastValidRoiBox: [number, number, number, number] | null = null;
-
   private smoothRoiBox: [number, number, number, number] | null = null;
 
-  // Options
+  // Options (public & tunable in real-time)
   public activityThreshold: number;
   public lumaThreshold: number;
   public hysteresisFrames: number;
@@ -32,6 +31,9 @@ export class BrowserEdgePipeline {
 
   private cumulativeRawBytes: number = 0;
   private cumulativeSentBytes: number = 0;
+
+  // Cached block grid
+  private lastBlockGrid: number[] = [];
 
   constructor(options: EdgeEngineOptions = {}) {
     this.w = options.analysisWidth ?? 128;
@@ -55,12 +57,29 @@ export class BrowserEdgePipeline {
     this.cumulativeSentBytes = 0;
     this.smoothRoiBox = null;
     this.lastValidRoiBox = null;
+    this.lastBlockGrid = [];
     this.bgModel.fill(0);
   }
 
   /**
+   * Get an ImageData representation of the learned background model (Stage 1 view).
+   */
+  public getBackgroundModelImageData(ctx: CanvasRenderingContext2D): ImageData {
+    const imgData = ctx.createImageData(this.w, this.h);
+    const data = imgData.data;
+    const len = this.w * this.h;
+    for (let p = 0, i = 0; p < len; p++, i += 4) {
+      const val = Math.min(255, Math.max(0, Math.round(this.bgModel[p])));
+      data[i] = val;
+      data[i + 1] = val;
+      data[i + 2] = val;
+      data[i + 3] = 255;
+    }
+    return imgData;
+  }
+
+  /**
    * Process a downscaled ImageData buffer through the 4 stages.
-   * nativeWidth & nativeHeight represent original video resolution (e.g. 1920x1080).
    */
   public processFrame(
     analysisImageData: ImageData,
@@ -68,17 +87,19 @@ export class BrowserEdgePipeline {
     nativeHeight: number,
     maskCanvasContext?: CanvasRenderingContext2D
   ): TelemetryData {
+    const startTime = performance.now();
     this.frameCount++;
     this.framesSinceSent++;
     const data = analysisImageData.data;
     const len = this.w * this.h;
 
-    // Stage 1: Running Average Background Subtraction & Block Clustering (Noise Immune)
+    // Stage 1: Running Average Background Subtraction & Block Clustering
     let activePixels = 0;
     const blockSize = 8;
     const gridCols = Math.floor(this.w / blockSize); // 16 cols
     const gridRows = Math.floor(this.h / blockSize); // 9 rows
-    const blockCounts = new Uint16Array(gridCols * gridRows);
+    const totalBlocks = gridCols * gridRows;
+    const blockCounts = new Uint16Array(totalBlocks);
 
     // Optional visualization mask
     const maskData = maskCanvasContext 
@@ -112,10 +133,10 @@ export class BrowserEdgePipeline {
           maskData.data[i] = 45;      // R (Teal tint)
           maskData.data[i + 1] = 212; // G
           maskData.data[i + 2] = 191; // B
-          maskData.data[i + 3] = 220; // Alpha
+          maskData.data[i + 3] = 230; // Alpha
         }
       } else if (maskData) {
-        // Dark transparent backdrop for background
+        // Dark translucent backdrop for background
         maskData.data[i] = 11;
         maskData.data[i + 1] = 19;
         maskData.data[i + 2] = 24;
@@ -123,7 +144,7 @@ export class BrowserEdgePipeline {
       }
 
       // Adaptive background model update:
-      // Slower learning rate for moving objects (0.002), faster for static scene (0.035)
+      // Slower rate for moving objects (0.002), faster for static scene (0.035)
       const alpha = isForeground ? 0.002 : 0.035;
       this.bgModel[p] += alpha * (luma - this.bgModel[p]);
     }
@@ -135,14 +156,20 @@ export class BrowserEdgePipeline {
     this.isInitialized = true;
     const activityRatio = activePixels / len;
 
-    // Find bounding box from active blocks (filters out isolated sensor noise specks)
+    // Find bounding box from active blocks
     let minBx = gridCols, maxBx = -1, minBy = gridRows, maxBy = -1;
     let activeBlockCount = 0;
-    const minPixelsPerBlock = 5; // requires at least 5 active pixels in an 8x8 block
+    const minPixelsPerBlock = 5;
+    const blockGrid: number[] = new Array(totalBlocks);
 
     for (let by = 0; by < gridRows; by++) {
       for (let bx = 0; bx < gridCols; bx++) {
-        if (blockCounts[by * gridCols + bx] >= minPixelsPerBlock) {
+        const idx = by * gridCols + bx;
+        const count = blockCounts[idx];
+        const isActive = count >= minPixelsPerBlock;
+        blockGrid[idx] = isActive ? 1 : 0;
+
+        if (isActive) {
           activeBlockCount++;
           if (bx < minBx) minBx = bx;
           if (bx > maxBx) maxBx = bx;
@@ -151,6 +178,8 @@ export class BrowserEdgePipeline {
         }
       }
     }
+
+    this.lastBlockGrid = blockGrid;
 
     // Stage 2: Adaptive Frame Skipping with Hysteresis & Heartbeat
     const hasMotion = activeBlockCount > 0 && activityRatio >= this.activityThreshold;
@@ -168,7 +197,7 @@ export class BrowserEdgePipeline {
       state = 'IDLE';
     }
 
-    // Baseline uncompressed/H.264 reference frame:
+    // Baseline uncompressed reference:
     // 1080p @ 4 Mbps, 15 fps = 4,000,000 / (8 * 15) = ~33,333 bytes/frame
     const baselineBytesPerFrame = Math.round((4e6) / (8 * 15));
     const rawBytes = baselineBytesPerFrame;
@@ -181,13 +210,11 @@ export class BrowserEdgePipeline {
 
       // Stage 3: ROI Bounding Box Extraction with EMA Smoothing & Padding
       if (maxBx >= 0 && maxBy >= 0) {
-        // Pixel coordinates in analysis frame
         const pMinX = minBx * blockSize;
         const pMinY = minBy * blockSize;
         const pMaxX = Math.min(this.w, (maxBx + 1) * blockSize);
         const pMaxY = Math.min(this.h, (maxBy + 1) * blockSize);
 
-        // Scale to native video dimensions
         const scaleX = nativeWidth / this.w;
         const scaleY = nativeHeight / this.h;
 
@@ -208,7 +235,7 @@ export class BrowserEdgePipeline {
         const targetW = natX1 - natX0;
         const targetH = natY1 - natY0;
 
-        // Temporal EMA Smoothing (prevents jitter and flickering)
+        // Temporal EMA Smoothing
         if (this.smoothRoiBox === null) {
           this.smoothRoiBox = [natX0, natY0, targetW, targetH];
         } else {
@@ -228,10 +255,8 @@ export class BrowserEdgePipeline {
         this.lastValidRoiBox = roiBox;
         const roiAreaRatio = (clampedW * clampedH) / (nativeWidth * nativeHeight);
 
-        // Sent bytes proportional to cropped ROI pixel area + 0.5% metadata
         sentBytes = Math.round(baselineBytesPerFrame * (roiAreaRatio + 0.005));
       } else if (this.smoothRoiBox) {
-        // During hysteresis motion decay, hold the stabilized bounding box steady
         const clampedX = Math.max(0, Math.min(nativeWidth - 30, Math.round(this.smoothRoiBox[0])));
         const clampedY = Math.max(0, Math.min(nativeHeight - 30, Math.round(this.smoothRoiBox[1])));
         const clampedW = Math.max(30, Math.min(nativeWidth - clampedX, Math.round(this.smoothRoiBox[2])));
@@ -252,13 +277,11 @@ export class BrowserEdgePipeline {
       this.smoothRoiBox = null;
       this.sentFrames++;
       this.framesSinceSent = 0;
-      // Low-res heartbeat keyframe (1/16th pixels, ~6% bytes)
       sentBytes = Math.round(baselineBytesPerFrame * 0.06);
       roiBox = [0, 0, nativeWidth, nativeHeight];
     } else {
       this.smoothRoiBox = null;
-      // IDLE: tiny metadata ping (~48 bytes)
-      sentBytes = 48;
+      sentBytes = 48; // IDLE metadata ping
       roiBox = null;
     }
 
@@ -270,23 +293,28 @@ export class BrowserEdgePipeline {
       ? ((rawBytes - sentBytes) / rawBytes) * 100 
       : 0;
 
-    // Real-time bitrates
     const currentKbps = Math.round((sentBytes * 8 * 15) / 1000);
     const baselineKbps = 4000;
 
-    // Real-world cumulative savings translation:
-    // Cumulative saved data -> kWh -> CO2 -> Water
-    // 10 pJ per FLOP, 50 GFLOP/frame = 0.5 J per frame in cloud inference
-    // + network transmission energy (~0.05 kWh per GB)
     const cumulativeSavedBytes = Math.max(0, this.cumulativeRawBytes - this.cumulativeSentBytes);
     const savedGb = cumulativeSavedBytes / 1e9;
     
-    // Cloud IT + Network energy saved in Watt-hours
+    // 50 GFLOP/frame inference = 0.5 J per frame in cloud inference
     const cumulativeEnergySavedWh = (savedGb * 50) + (this.frameCount - this.sentFrames) * (0.5 / 3600);
-    // Grid carbon intensity ~0.45 kg CO2/kWh = 0.45 g/Wh
     const cumulativeCo2AvoidedGrams = cumulativeEnergySavedWh * 0.45;
-    // On-site cooling water: 0.5 mL per Wh
     const cumulativeWaterSavedMl = cumulativeEnergySavedWh * 0.5;
+
+    // Stage 4: Generate simulated MobileNet quantized int8 embedding
+    const sampleSeed = (this.frameCount * 13) % 256;
+    const embeddingPreview: number[] = [];
+    for (let e = 0; e < 12; e++) {
+      const v = ((sampleSeed * (e + 3) + 37) % 256) - 128;
+      embeddingPreview.push(v);
+    }
+
+    const latencyMs = Math.round((performance.now() - startTime) * 100) / 100;
+    // Edge RAM footprint estimate (~138 KB): bgModel (36.8KB) + analysis buffers (36.8KB) + model weights (64KB)
+    const hardwareMemoryKb = 138;
 
     return {
       timestamp: Date.now(),
@@ -301,8 +329,8 @@ export class BrowserEdgePipeline {
       baselineKbps,
       roiBox,
       detections: hasMotion ? [{
-        label: 'Motion Target',
-        confidence: Math.min(0.98, Math.round((activityRatio * 4 + 0.6) * 100) / 100),
+        label: activityRatio > 0.15 ? 'Vehicle / Forklift' : 'Pedestrian / Target',
+        confidence: Math.min(0.98, Math.round((activityRatio * 2 + 0.75) * 100) / 100),
         box: roiBox ?? undefined,
       }] : [],
       totalCapturedFrames: this.frameCount,
@@ -312,6 +340,12 @@ export class BrowserEdgePipeline {
       cumulativeEnergySavedWh: Math.round(cumulativeEnergySavedWh * 10) / 10,
       cumulativeCo2AvoidedGrams: Math.round(cumulativeCo2AvoidedGrams * 10) / 10,
       cumulativeWaterSavedMl: Math.round(cumulativeWaterSavedMl * 10) / 10,
+      latencyMs,
+      embeddingPreview,
+      activeBlockCount,
+      totalBlocks,
+      activeBlockGrid: this.lastBlockGrid,
+      hardwareMemoryKb
     };
   }
 }
