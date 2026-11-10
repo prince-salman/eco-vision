@@ -84,6 +84,9 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
 
   // Per-camera activity state for multi-cam
   const [camActivity, setCamActivity] = useState<('ACTIVE' | 'IDLE')[]>(['IDLE', 'IDLE', 'IDLE', 'IDLE']);
+  const lastCamActivityRef = useRef<string[]>(['IDLE', 'IDLE', 'IDLE', 'IDLE']);
+  const lastPushedStateRef = useRef<string>('IDLE');
+  const lastTelemetryPushTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (pythonStream?.roiB64) {
@@ -131,6 +134,12 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
     offCanvas.height = analysisH;
     const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
 
+    // Persistent offscreen canvas for background model visualization (avoid GC churn)
+    const bgTempCanvas = document.createElement('canvas');
+    bgTempCanvas.width = analysisW;
+    bgTempCanvas.height = analysisH;
+    const bgTempCtx = bgTempCanvas.getContext('2d');
+
     const maskCtx = maskCanvasRef.current?.getContext('2d');
     let latestTelemetry: TelemetryData | null = null;
 
@@ -153,18 +162,22 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
           // Update interactive target physics
           simulatorRef.current.updateInteractiveTarget(w, h);
 
-          // 1. Draw source scene
+          // 1. Draw source scene ONCE on raw canvas, then hardware-blit to analysis canvas
           if (sourceMode === 'browser_sample') {
-            simulatorRef.current.renderScene(offCtx, analysisW, analysisH, sampleTimeRef.current, selectedScenario, nightMode);
             if (rawCtx) {
               simulatorRef.current.renderScene(rawCtx, w, h, sampleTimeRef.current, selectedScenario, nightMode);
+              offCtx.drawImage(rawCanvas, 0, 0, analysisW, analysisH);
+            } else {
+              simulatorRef.current.renderScene(offCtx, analysisW, analysisH, sampleTimeRef.current, selectedScenario, nightMode);
             }
           } else if ((sourceMode === 'browser_webcam' || sourceMode === 'browser_upload') && videoRef.current) {
             const v = videoRef.current;
             if (v.readyState >= 2) {
-              offCtx.drawImage(v, 0, 0, analysisW, analysisH);
               if (rawCtx) {
                 rawCtx.drawImage(v, 0, 0, w, h);
+                offCtx.drawImage(rawCanvas, 0, 0, analysisW, analysisH);
+              } else {
+                offCtx.drawImage(v, 0, 0, analysisW, analysisH);
               }
             }
           }
@@ -175,7 +188,16 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
             const imgData = offCtx.getImageData(0, 0, analysisW, analysisH);
             const tResult = pipelineRef.current.processFrame(imgData, w, h, maskCtx || undefined);
             latestTelemetry = tResult;
-            setTelemetry(tResult);
+
+            // Throttle top-level React state dispatch to ~4 Hz or on immediate state transition
+            // Prevents massive React re-render cascades and main-thread freezing
+            const nowMs = performance.now();
+            const stateChanged = tResult.state !== lastPushedStateRef.current;
+            if (stateChanged || (nowMs - lastTelemetryPushTimeRef.current >= 250)) {
+              lastTelemetryPushTimeRef.current = nowMs;
+              lastPushedStateRef.current = tResult.state;
+              setTelemetry(tResult);
+            }
           }
 
           // 3. Render Eco-Vision Edge View according to active Pipeline View Mode
@@ -189,12 +211,11 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
             if (viewMode === 'stage1_bg') {
               // --- STAGE 1: Learned Background Model View ---
               const bgImg = pipelineRef.current.getBackgroundModelImageData(edgeCtx);
-              const tempCanvas = document.createElement('canvas');
-              tempCanvas.width = analysisW;
-              tempCanvas.height = analysisH;
-              tempCanvas.getContext('2d')?.putImageData(bgImg, 0, 0);
-              edgeCtx.imageSmoothingEnabled = false;
-              edgeCtx.drawImage(tempCanvas, 0, 0, w, h);
+              if (bgTempCtx) {
+                bgTempCtx.putImageData(bgImg, 0, 0);
+                edgeCtx.imageSmoothingEnabled = false;
+                edgeCtx.drawImage(bgTempCanvas, 0, 0, w, h);
+              }
 
               edgeCtx.fillStyle = 'rgba(45,212,191,0.9)';
               edgeCtx.font = 'bold 12px JetBrains Mono, monospace';
@@ -216,8 +237,8 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
               edgeCtx.fillText(`Active Pixels: ${Math.round((latestTelemetry?.activityRatio ?? 0) * 1000) / 10}% | State: ${curState}`, 16, 42);
             } else if (viewMode === 'stage3_blocks') {
               // --- STAGE 3: 8x8 Spatial Block Clustering ---
-              if (sourceMode === 'browser_sample') {
-                simulatorRef.current.renderScene(edgeCtx, w, h, sampleTimeRef.current, selectedScenario, nightMode);
+              if (rawCanvas) {
+                edgeCtx.drawImage(rawCanvas, 0, 0, w, h);
               } else if (videoRef.current && videoRef.current.readyState >= 2) {
                 edgeCtx.drawImage(videoRef.current, 0, 0, w, h);
               }
@@ -330,13 +351,13 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
               edgeCtx.restore();
             } else {
               // --- DUAL / STANDARD ECO-VISION VIEW ---
-              if (curState === 'ACTIVE' || curState === 'HEARTBEAT') {
-                if (sourceMode === 'browser_sample') {
-                  simulatorRef.current.renderScene(edgeCtx, w, h, sampleTimeRef.current, selectedScenario, nightMode);
-                } else if (videoRef.current && videoRef.current.readyState >= 2) {
-                  edgeCtx.drawImage(videoRef.current, 0, 0, w, h);
-                }
+              if (rawCanvas) {
+                edgeCtx.drawImage(rawCanvas, 0, 0, w, h);
+              } else if (videoRef.current && videoRef.current.readyState >= 2) {
+                edgeCtx.drawImage(videoRef.current, 0, 0, w, h);
+              }
 
+              if (curState === 'ACTIVE' || curState === 'HEARTBEAT') {
                 if (curState === 'ACTIVE' && curRoi) {
                   const [rx, ry, rw, rh] = curRoi;
                   edgeCtx.fillStyle = 'rgba(11, 19, 24, 0.72)';
@@ -369,11 +390,6 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
                 }
               } else {
                 // IDLE: Throttled state
-                if (sourceMode === 'browser_sample') {
-                  simulatorRef.current.renderScene(edgeCtx, w, h, sampleTimeRef.current, selectedScenario, nightMode);
-                } else if (videoRef.current && videoRef.current.readyState >= 2) {
-                  edgeCtx.drawImage(videoRef.current, 0, 0, w, h);
-                }
                 edgeCtx.fillStyle = 'rgba(11, 19, 24, 0.85)';
                 edgeCtx.fillRect(0, 0, w, h);
                 edgeCtx.fillStyle = '#2DD4BF';
@@ -445,7 +461,12 @@ export const StreamViewer: React.FC<StreamViewerProps> = ({
           }
         });
 
-        setCamActivity(newActivity);
+        // Only trigger React re-render when an activity status actually changes
+        const isChanged = newActivity.some((act, idx) => act !== lastCamActivityRef.current[idx]);
+        if (isChanged) {
+          lastCamActivityRef.current = newActivity;
+          setCamActivity(newActivity);
+        }
       }
 
       animId = requestAnimationFrame(renderLoop);

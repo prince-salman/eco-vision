@@ -87,18 +87,45 @@ export default function DetectionLog({ telemetry }: DetectionLogProps) {
   });
 
   const lastTimestampRef = useRef<number | null>(null);
+  const lastLoggedTimeRef = useRef<number>(0);
+  const lastLoggedStateRef = useRef<string>('IDLE');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tableBottomRef = useRef<HTMLDivElement>(null);
 
+  // Debounced localStorage sync (never blocks the render frame)
   useEffect(() => {
-    try {
-      localStorage.setItem('ecovision_detection_log', JSON.stringify(log));
-    } catch {}
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem('ecovision_detection_log', JSON.stringify(log));
+      } catch {}
+    }, 1000);
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
   }, [log]);
 
+  // Log ONLY on meaningful events:
+  // 1. State transition (e.g. IDLE -> ACTIVE, or ACTIVE -> IDLE)
+  // 2. OR periodically during ACTIVE motion (at most once every 3 seconds)
+  // Never log 15 IDLE frames per second!
   useEffect(() => {
     if (!telemetry) return;
     if (lastTimestampRef.current === telemetry.timestamp) return;
     lastTimestampRef.current = telemetry.timestamp;
+
+    const now = Date.now();
+    const currentState = telemetry.state;
+    const isStateTransition = currentState !== lastLoggedStateRef.current;
+    const isPeriodicActive = currentState === 'ACTIVE' && (now - lastLoggedTimeRef.current >= 3000);
+
+    // Only log if state changed or 3 seconds elapsed in ACTIVE mode
+    if (!isStateTransition && !isPeriodicActive) {
+      return;
+    }
+
+    lastLoggedTimeRef.current = now;
+    lastLoggedStateRef.current = currentState;
 
     const roiW = telemetry.roiBox ? telemetry.roiBox[2] : null;
     const roiH = telemetry.roiBox ? telemetry.roiBox[3] : null;
@@ -121,9 +148,11 @@ export default function DetectionLog({ telemetry }: DetectionLogProps) {
     });
   }, [telemetry]);
 
-  // Auto-scroll to latest
+  // Instant scroll to latest (no thread locking)
   useEffect(() => {
-    tableBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (tableBottomRef.current) {
+      tableBottomRef.current.scrollIntoView({ behavior: 'auto' });
+    }
   }, [log.length]);
 
   function handleExport() {
