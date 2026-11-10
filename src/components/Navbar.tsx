@@ -1,7 +1,7 @@
 import React from 'react';
 import { Leaf, Cpu, Video, Server, Sliders, FileText } from 'lucide-react';
 
-export type ActiveNavTab = 'operations' | 'fleet' | 'simulator' | 'log' | 'whitepaper';
+export type ActiveNavTab = 'operations' | 'fleet' | 'simulator' | 'log';
 
 interface NavbarProps {
   isPythonConnected: boolean;
@@ -23,7 +23,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'fleet', label: 'Fleet & Edge Nodes', icon: <Server className="h-4 w-4" /> },
     { id: 'simulator', label: 'Macro Model (3.3)', icon: <Sliders className="h-4 w-4" /> },
     { id: 'log', label: 'Detection Log', icon: <FileText className="h-4 w-4" /> },
-    { id: 'whitepaper', label: 'Research Paper', icon: <Leaf className="h-4 w-4" /> },
   ];
 
   return (

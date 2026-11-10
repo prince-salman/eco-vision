@@ -7,7 +7,6 @@ import DetectionLog from './components/DetectionLog';
 import { MacroSimulator } from './components/MacroSimulator';
 import { ArchitectureStages } from './components/ArchitectureStages';
 import { FleetManager } from './components/FleetManager';
-import { ResearchWhitepaper } from './components/ResearchWhitepaper';
 import { useVideoFeed } from './hooks/useVideoFeed';
 import { useEdgeWebSocket } from './hooks/useEdgeWebSocket';
 import { TelemetryData } from './types';
@@ -142,14 +141,6 @@ export default function App() {
             >
               📋 Detection Event Log
             </button>
-            <button
-              onClick={() => setActiveTab('whitepaper')}
-              className={`rounded-lg px-3 py-1.5 border transition-all ${
-                activeTab === 'whitepaper' ? 'bg-eco-teal/15 text-eco-teal border-eco-teal/40 font-bold' : 'border-eco-border text-eco-muted hover:text-eco-ink'
-              }`}
-            >
-              📄 Research Whitepaper
-            </button>
           </div>
         </div>
 
@@ -226,13 +217,6 @@ export default function App() {
         {activeTab === 'log' && (
           <section>
             <DetectionLog telemetry={activeTelemetry} />
-          </section>
-        )}
-
-        {/* ───── TAB 5: RESEARCH WHITEPAPER ───── */}
-        {activeTab === 'whitepaper' && (
-          <section>
-            <ResearchWhitepaper />
           </section>
         )}
       </main>
